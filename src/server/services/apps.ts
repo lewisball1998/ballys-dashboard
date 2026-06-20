@@ -24,6 +24,7 @@ function toDTO(row: App, latestHealth: AppHealthResultDTO | null): AppDTO {
     authRequired: row.authRequired,
     healthUrl: row.healthUrl ?? null,
     healthEnabled: row.healthEnabled,
+    healthInsecureTls: row.healthInsecureTls,
     isHidden: row.isHidden,
     lifecycle: row.lifecycle,
     sortOrder: row.sortOrder,
@@ -86,6 +87,7 @@ export function createApp(input: AppCreateInput): AppDTO {
       authRequired: input.authRequired ?? false,
       healthUrl: input.healthUrl ?? null,
       healthEnabled: input.healthEnabled ?? false,
+      healthInsecureTls: input.healthInsecureTls ?? false,
       sortOrder: input.sortOrder ?? nextSortOrder(categoryId),
       createdAt: now,
       updatedAt: now,
@@ -107,6 +109,7 @@ export function updateApp(id: number, input: AppUpdateInput): AppDTO | null {
   if (input.authRequired !== undefined) set.authRequired = input.authRequired;
   if (input.healthUrl !== undefined) set.healthUrl = input.healthUrl ?? null;
   if (input.healthEnabled !== undefined) set.healthEnabled = input.healthEnabled;
+  if (input.healthInsecureTls !== undefined) set.healthInsecureTls = input.healthInsecureTls;
   if (input.sortOrder !== undefined) set.sortOrder = input.sortOrder;
 
   const row = db.update(apps).set(set).where(eq(apps.id, id)).returning().get();

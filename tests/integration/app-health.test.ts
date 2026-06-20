@@ -1,56 +1,44 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-// Mock the guarded fetch wrapper so we can assert checkApp goes THROUGH it
-// (never bypasses) without making real network calls.
-vi.mock("@/server/http/guarded-fetch", () => {
-  class GuardedFetchError extends Error {
-    code: string;
-    constructor(message: string, code: string) {
-      super(message);
-      this.code = code;
+// Mock the health probe so we can assert checkApp goes THROUGH it (never makes
+// real network calls) and maps probe results/errors onto persisted health rows.
+vi.mock("@/server/http/health-probe", () => {
+  class HealthProbeError extends Error {
+    reason: string;
+    constructor(reason: string, message?: string) {
+      super(message ?? reason);
+      this.reason = reason;
+      this.name = "HealthProbeError";
     }
   }
-  return { GuardedFetchError, guardedFetch: vi.fn() };
+  return { HealthProbeError, probeHealth: vi.fn() };
 });
 
 import { db } from "@/db";
 import { runMigrations } from "@/db/migrate";
 import { appHealth, apps, categories } from "@/db/schema";
-import { guardedFetch, GuardedFetchError, type GuardedResponse } from "@/server/http/guarded-fetch";
+import { HealthProbeError, probeHealth } from "@/server/http/health-probe";
 import { createApp } from "@/server/services/apps";
 import { checkAppById, getHistory, getLatestHealth, getStats } from "@/server/services/app-health";
 
-const mockFetch = vi.mocked(guardedFetch);
-
-function fakeRes(status: number, durationMs = 1): GuardedResponse {
-  return {
-    ok: status >= 200 && status < 300,
-    status,
-    statusText: "",
-    url: "https://svc.test",
-    headers: new Headers(),
-    body: Buffer.alloc(0),
-    bytes: 0,
-    durationMs,
-  };
-}
+const mockProbe = vi.mocked(probeHealth);
 
 beforeAll(() => runMigrations());
 beforeEach(() => {
   db.delete(appHealth).run();
   db.delete(apps).run();
   db.delete(categories).run();
-  mockFetch.mockReset();
+  mockProbe.mockReset();
 });
 
 describe("app health checks", () => {
-  it("persists an 'up' result via the guarded fetch wrapper", async () => {
-    mockFetch.mockResolvedValue(fakeRes(200, 7));
+  it("persists an 'up' result via the health probe", async () => {
+    mockProbe.mockResolvedValue({ status: 200, durationMs: 7 });
     const app = createApp({ name: "svc", url: "https://svc.test" });
 
     const result = await checkAppById(app.id);
-    expect(mockFetch).toHaveBeenCalledTimes(1);
-    expect(mockFetch.mock.calls[0]?.[0]).toBe("https://svc.test");
+    expect(mockProbe).toHaveBeenCalledTimes(1);
+    expect(mockProbe.mock.calls[0]?.[0]).toBe("https://svc.test");
     expect(result?.status).toBe("up");
     expect(result?.statusCode).toBe(200);
     expect(result?.latencyMs).toBe(7);
@@ -59,30 +47,42 @@ describe("app health checks", () => {
 
   it("maps 4xx to degraded and 5xx to down", async () => {
     const a = createApp({ name: "a", url: "https://a.test" });
-    mockFetch.mockResolvedValue(fakeRes(404));
+    mockProbe.mockResolvedValue({ status: 404, durationMs: 1 });
     expect((await checkAppById(a.id))?.status).toBe("degraded");
-    mockFetch.mockResolvedValue(fakeRes(500));
+    mockProbe.mockResolvedValue({ status: 500, durationMs: 1 });
     expect((await checkAppById(a.id))?.status).toBe("down");
   });
 
   it("falls back to url, and prefers healthUrl when set", async () => {
-    mockFetch.mockResolvedValue(fakeRes(200));
+    mockProbe.mockResolvedValue({ status: 200, durationMs: 1 });
     const a = createApp({ name: "a", url: "https://a.test" });
     await checkAppById(a.id);
-    expect(mockFetch.mock.calls[0]?.[0]).toBe("https://a.test");
+    expect(mockProbe.mock.calls[0]?.[0]).toBe("https://a.test");
 
-    mockFetch.mockClear();
+    mockProbe.mockClear();
     const b = createApp({ name: "b", url: "https://b.test", healthUrl: "https://b.test/health" });
     await checkAppById(b.id);
-    expect(mockFetch.mock.calls[0]?.[0]).toBe("https://b.test/health");
+    expect(mockProbe.mock.calls[0]?.[0]).toBe("https://b.test/health");
   });
 
-  it("records 'down' when the guarded fetch throws", async () => {
-    mockFetch.mockRejectedValue(new GuardedFetchError("timed out", "timeout"));
+  it("passes the per-app self-signed TLS option through to the probe", async () => {
+    mockProbe.mockResolvedValue({ status: 200, durationMs: 1 });
+    const insecure = createApp({ name: "i", url: "https://i.test", healthInsecureTls: true });
+    await checkAppById(insecure.id);
+    expect(mockProbe.mock.calls[0]?.[1]).toMatchObject({ allowInsecureTls: true });
+
+    mockProbe.mockClear();
+    const secure = createApp({ name: "s", url: "https://s.test" });
+    await checkAppById(secure.id);
+    expect(mockProbe.mock.calls[0]?.[1]).toMatchObject({ allowInsecureTls: false });
+  });
+
+  it("records 'down' with a safe reason when the probe throws", async () => {
+    mockProbe.mockRejectedValue(new HealthProbeError("self_signed", "Self-signed certificate"));
     const a = createApp({ name: "a", url: "https://a.test" });
     const result = await checkAppById(a.id);
     expect(result?.status).toBe("down");
-    expect(result?.message).toContain("timeout");
+    expect(result?.message).toBe("Self-signed certificate");
   });
 
   it("returns null for an unknown app", async () => {
@@ -91,10 +91,10 @@ describe("app health checks", () => {
 
   it("computes uptime stats and history from persisted results", async () => {
     const a = createApp({ name: "a", url: "https://a.test" });
-    mockFetch.mockResolvedValue(fakeRes(200));
+    mockProbe.mockResolvedValue({ status: 200, durationMs: 1 });
     await checkAppById(a.id);
     await checkAppById(a.id);
-    mockFetch.mockResolvedValue(fakeRes(500));
+    mockProbe.mockResolvedValue({ status: 500, durationMs: 1 });
     await checkAppById(a.id);
 
     const stats = getStats(a.id, 24);

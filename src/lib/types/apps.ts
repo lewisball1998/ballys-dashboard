@@ -34,6 +34,12 @@ export interface AppDTO {
   /** When null, health checks (if enabled) fall back to `url`. */
   healthUrl: string | null;
   healthEnabled: boolean;
+  /**
+   * Trusted-internal escape hatch: skip TLS verification for this app's health
+   * check only (e.g. a NAS with a self-signed cert). Secure verification is the
+   * default; this never affects other apps or global TLS.
+   */
+  healthInsecureTls: boolean;
   isHidden: boolean;
   lifecycle: AppLifecycle;
   sortOrder: number;

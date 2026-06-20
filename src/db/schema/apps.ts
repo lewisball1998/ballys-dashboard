@@ -28,6 +28,12 @@ export const apps = sqliteTable(
     // Health checks
     healthUrl: text("health_url"),
     healthEnabled: integer("health_enabled", { mode: "boolean" }).notNull().default(false),
+    // Per-app, trusted-internal escape hatch: skip TLS verification for THIS
+    // app's health check only (e.g. a NAS/admin panel with a self-signed cert).
+    // Secure verification stays the default and global TLS is NEVER disabled.
+    healthInsecureTls: integer("health_insecure_tls", { mode: "boolean" })
+      .notNull()
+      .default(false),
 
     // Lifecycle
     isHidden: integer("is_hidden", { mode: "boolean" }).notNull().default(false),

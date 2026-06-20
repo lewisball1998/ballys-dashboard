@@ -8,6 +8,13 @@
       "when": 1781960602671,
       "tag": "0000_sticky_secret_warriors",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1781983999121,
+      "tag": "0001_add_health_insecure_tls",
+      "breakpoints": true
     }
   ]
 }

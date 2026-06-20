@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { appHealth, apps } from "@/db/schema";
 import type { App, AppHealth } from "@/db/schema";
 import type { AppHealthResultDTO, AppHealthStatsDTO, HealthStatus } from "@/lib/types";
-import { guardedFetch, GuardedFetchError } from "@/server/http/guarded-fetch";
+import { HealthProbeError, probeHealth } from "@/server/http/health-probe";
 
 const CHECK_TIMEOUT_MS = 10_000;
 
@@ -31,8 +31,11 @@ function healthTarget(app: App): string {
 }
 
 /**
- * Perform a health check for an app via the guarded fetch wrapper (never bypass
- * it) and persist the result. Returns the persisted result.
+ * Perform a health check for an app and persist the result. Uses the diagnostic
+ * health probe, which classifies failures (DNS / refused / timeout / TLS /
+ * self-signed / non-2xx / invalid URL) into safe, user-friendly messages and
+ * honours the per-app "allow self-signed TLS" option for trusted internal
+ * services. Returns the persisted result.
  */
 export async function checkApp(app: App): Promise<AppHealthResultDTO> {
   let status: HealthStatus = "unknown";
@@ -41,24 +44,18 @@ export async function checkApp(app: App): Promise<AppHealthResultDTO> {
   let message: string | null = null;
 
   try {
-    const res = await guardedFetch(healthTarget(app), {
-      method: "GET",
-      privateNetwork: "allow", // LAN targets are expected for a homelab launcher
+    const res = await probeHealth(healthTarget(app), {
       timeoutMs: CHECK_TIMEOUT_MS,
-      maxRedirects: 5,
+      allowInsecureTls: app.healthInsecureTls,
     });
     statusCode = res.status;
     latencyMs = res.durationMs;
     status = statusFromCode(res.status);
-    if (status !== "up") message = `HTTP ${res.status}`;
+    if (status !== "up") message = `Non-2xx HTTP response (HTTP ${res.status})`;
   } catch (error) {
     status = "down";
-    message =
-      error instanceof GuardedFetchError
-        ? `${error.code}: ${error.message}`
-        : error instanceof Error
-          ? error.message
-          : "check failed";
+    // HealthProbeError messages are already safe (no URLs, secrets, or stacks).
+    message = error instanceof HealthProbeError ? error.message : "Health check failed";
   }
 
   const row = db

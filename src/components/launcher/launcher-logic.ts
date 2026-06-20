@@ -109,6 +109,7 @@ export interface AppFormValues {
   isFavourite: boolean;
   healthEnabled: boolean;
   healthUrl: string;
+  healthInsecureTls: boolean;
 }
 
 export function emptyAppForm(categoryId: number | null = null): AppFormValues {
@@ -122,6 +123,7 @@ export function emptyAppForm(categoryId: number | null = null): AppFormValues {
     isFavourite: false,
     healthEnabled: false,
     healthUrl: "",
+    healthInsecureTls: false,
   };
 }
 
@@ -136,6 +138,7 @@ export function appToForm(app: AppDTO): AppFormValues {
     isFavourite: app.isFavourite,
     healthEnabled: app.healthEnabled,
     healthUrl: app.healthUrl ?? "",
+    healthInsecureTls: app.healthInsecureTls,
   };
 }
 
@@ -153,6 +156,7 @@ export function buildAppPayload(v: AppFormValues): AppCreateInput {
     isFavourite: v.isFavourite,
     healthEnabled: v.healthEnabled,
     healthUrl: orNull(v.healthUrl),
+    healthInsecureTls: v.healthInsecureTls,
   };
 }
 
