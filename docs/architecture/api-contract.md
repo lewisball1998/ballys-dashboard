@@ -68,14 +68,20 @@ Deleting a category sets its apps' `categoryId` to null (schema `onDelete: set n
 | ~~PUT~~ | ~~`/api/dashboard/widgets`~~ | `dashboardLayoutUpdateSchema` | — | **v0.3** layout customisation — schema defined, endpoint not built in v0.1 |
 
 ### Local system metrics (Backend Phase 1; FE consumes)
-| Method | Path | Response data | Notes |
-|---|---|---|---|
-| GET | `/api/metrics` | metric series (DTOs finalised when Backend lands the collector) | container-visible CPU/RAM/storage/network/uptime |
-| POST | `/api/metrics/refresh` | `{ ok: true }` | triggers `scheduler.runNow("system-metrics")` |
+| Method | Path | Request schema | Response data | Notes |
+|---|---|---|---|---|
+| GET | `/api/metrics` | `metricsQuerySchema` (query) | `MetricsResponseDTO` (`{ points: MetricPointDTO[] }`) | no `window` → latest per (sourceId, metric); with `window` (minutes) + optional `sourceId` → windowed points |
+| POST | `/api/metrics/refresh` | — | `{ refreshed: true }` | triggers `scheduler.runNow("system-metrics")`; `503 job_unavailable` if scheduler not running |
 
-> Metrics and notifications DTOs are stubbed for Phase 3 detail; the system
-> metrics read endpoint is needed by Phase 1 FE widgets and will reuse the
-> `metrics` table shape. Notification centre endpoints are documented in Phase 3.
+v0.1 `sourceId`/`metric` pairs emitted by the core collector (container-visible,
+ADR 0008): `cpu/usage_percent`, `memory/{usage_percent,bytes_total,bytes_used}`,
+`storage/{usage_percent,bytes_total,bytes_used}`,
+`network/{rx_bytes_per_sec,tx_bytes_per_sec}`, `uptime/{system_seconds,process_seconds}`.
+CPU and network are delta-based and first appear on the second collection cycle.
+
+> `MetricPointDTO` was added by Backend when it landed the collector (the
+> contract previously deferred it). Notification centre endpoints are documented
+> in Phase 3.
 
 ## Source of truth
 - Types: `src/lib/types/{settings,categories,apps,health,widgets,common}.ts`

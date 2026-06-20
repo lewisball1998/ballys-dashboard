@@ -10,5 +10,9 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["tests/**/*.test.ts"],
+    // Keep any accidental DB import off the real data volume during tests.
+    env: {
+      DATABASE_PATH: ":memory:",
+    },
   },
 });

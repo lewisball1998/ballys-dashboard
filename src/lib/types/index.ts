@@ -11,3 +11,4 @@ export * from "./categories";
 export * from "./apps";
 export * from "./health";
 export * from "./widgets";
+export * from "./metrics";
