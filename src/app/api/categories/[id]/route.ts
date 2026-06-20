@@ -1,4 +1,4 @@
-import { route, jsonOk, jsonError, parseBody, parseJson } from "@/server/api/respond";
+import { protectedRoute, jsonOk, jsonError, parseBody, parseJson } from "@/server/api/respond";
 import { categoryUpdateSchema, idParamSchema } from "@/lib/validation";
 import { deleteCategory, updateCategory } from "@/server/services/categories";
 
@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 type Ctx = { params: Promise<{ id: string }> };
 
-export const PATCH = route<Ctx>(async (req, ctx) => {
+export const PATCH = protectedRoute<Ctx>(async (req, ctx) => {
   const idRes = parseBody(idParamSchema, await ctx.params);
   if (!idRes.success) return idRes.response;
   const parsed = await parseJson(req, categoryUpdateSchema);
@@ -17,7 +17,7 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
   return jsonOk(updated);
 });
 
-export const DELETE = route<Ctx>(async (req, ctx) => {
+export const DELETE = protectedRoute<Ctx>(async (req, ctx) => {
   const idRes = parseBody(idParamSchema, await ctx.params);
   if (!idRes.success) return idRes.response;
 

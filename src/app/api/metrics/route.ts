@@ -1,11 +1,11 @@
-import { route, jsonOk, parseQuery } from "@/server/api/respond";
+import { protectedRoute, jsonOk, parseQuery } from "@/server/api/respond";
 import { metricsQuerySchema } from "@/lib/validation";
 import type { MetricsResponseDTO } from "@/lib/types";
 import { getLatestMetrics, getMetricsWindow } from "@/server/services/metrics";
 
 export const dynamic = "force-dynamic";
 
-export const GET = route(async (req) => {
+export const GET = protectedRoute(async (req) => {
   const parsed = parseQuery(req.nextUrl.searchParams, metricsQuerySchema);
   if (!parsed.success) return parsed.response;
 

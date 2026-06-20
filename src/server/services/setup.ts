@@ -3,8 +3,9 @@ import { db } from "@/db";
 import { apps, categories, settings } from "@/db/schema";
 import { SETTING_KEYS } from "@/lib/constants";
 import type { SetupSeedResultDTO, SetupStatusDTO } from "@/lib/types";
-import type { SettingsUpdateInput } from "@/lib/validation";
+import type { SetupCompleteInput } from "@/lib/validation";
 import { STARTER_TEMPLATES, getTemplate, type TemplateId } from "@/server/setup/templates";
+import { createOrUpdateAdmin } from "@/server/auth/users";
 import { getSettings, updateSettings } from "./settings";
 
 function countOf(table: typeof apps | typeof categories): number {
@@ -32,11 +33,22 @@ export function getSetupStatus(): SetupStatusDTO {
 }
 
 /**
- * Mark setup complete. Idempotent (upsert). Optionally applies final settings
- * first (validated by the caller). Never touches existing apps/categories.
+ * Mark setup complete. Idempotent (upsert). Optionally applies final settings and
+ * configures auth (create admin + enable, or explicit skip + disable). Never
+ * touches existing apps/categories.
  */
-export function completeSetup(finalSettings?: SettingsUpdateInput): SetupStatusDTO {
-  if (finalSettings) updateSettings(finalSettings);
+export function completeSetup(input: SetupCompleteInput = {}): SetupStatusDTO {
+  if (input.settings) updateSettings(input.settings);
+
+  if (input.auth) {
+    if ("skip" in input.auth) {
+      updateSettings({ authEnabled: false });
+    } else {
+      createOrUpdateAdmin(input.auth.username, input.auth.password);
+      updateSettings({ authEnabled: true });
+    }
+  }
+
   const now = new Date();
   db.insert(settings)
     .values({ key: SETTING_KEYS.setupCompleted, value: "true", updatedAt: now })

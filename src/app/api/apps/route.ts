@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { route, jsonOk, parseJson, parseQuery } from "@/server/api/respond";
+import { protectedRoute, jsonOk, parseJson, parseQuery } from "@/server/api/respond";
 import { appCreateSchema } from "@/lib/validation";
 import type { AppDTO, ListResult } from "@/lib/types";
 import { createApp, listApps } from "@/server/services/apps";
@@ -12,7 +12,7 @@ const listQuerySchema = z.object({
   includeHidden: z.enum(["true", "false"]).optional(),
 });
 
-export const GET = route(async (req) => {
+export const GET = protectedRoute(async (req) => {
   const parsed = parseQuery(req.nextUrl.searchParams, listQuerySchema);
   if (!parsed.success) return parsed.response;
 
@@ -24,7 +24,7 @@ export const GET = route(async (req) => {
   return jsonOk(body);
 });
 
-export const POST = route(async (req) => {
+export const POST = protectedRoute(async (req) => {
   const parsed = await parseJson(req, appCreateSchema);
   if (!parsed.success) return parsed.response;
   return jsonOk(createApp(parsed.data), 201);

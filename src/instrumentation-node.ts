@@ -13,6 +13,7 @@ import { dbNotificationSink } from "@/server/events/db-sink";
 import { seedSettings, getSettings } from "@/server/services/settings";
 import { createSystemMetricsJob } from "@/server/jobs/system-metrics";
 import { createAppHealthJob } from "@/server/jobs/app-health";
+import { cleanupExpiredSessions } from "@/server/auth/session";
 
 let registered = false;
 
@@ -23,6 +24,7 @@ export function registerNode(): void {
   runMigrations();
   initializeModules();
   seedSettings();
+  cleanupExpiredSessions();
 
   // Persist events (e.g. threshold breaches) as notifications.
   events.addSink(dbNotificationSink);
