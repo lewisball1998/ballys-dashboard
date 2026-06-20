@@ -16,12 +16,18 @@ import { completeSetup, fetchSetupStatus, seedTemplate } from "@/hooks/setup-api
 import {
   apiErrorToAppearanceErrors,
   buildCompletePayload,
+  EMPTY_SETUP_AUTH,
   formatSeedResult,
   statusToAppearance,
   validateAppearance,
+  validateSetupAuth,
   type AppearanceErrors,
   type AppearanceValues,
+  type SetupAuthErrors,
+  type SetupAuthValues,
 } from "./setup-logic";
+
+type Step = 1 | 2 | 3 | 4;
 
 function FieldError({ messages }: { messages?: string[] }) {
   if (!messages?.length) return null;
@@ -35,7 +41,7 @@ export function SetupWizard() {
   const [status, setStatus] = useState<SetupStatusDTO | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<Step>(1);
   const [values, setValues] = useState<AppearanceValues | null>(null);
   const [errors, setErrors] = useState<AppearanceErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
@@ -43,6 +49,9 @@ export function SetupWizard() {
 
   const [template, setTemplate] = useState<string>("homelab");
   const [seedResult, setSeedResult] = useState<SetupSeedResultDTO | null>(null);
+
+  const [auth, setAuth] = useState<SetupAuthValues>(EMPTY_SETUP_AUTH);
+  const [authErrors, setAuthErrors] = useState<SetupAuthErrors>({});
 
   const load = useCallback(async () => {
     setError(null);
@@ -84,6 +93,8 @@ export function SetupWizard() {
 
   const set = <K extends keyof AppearanceValues>(key: K, value: AppearanceValues[K]) =>
     setValues((prev) => (prev ? { ...prev, [key]: value } : prev));
+  const setAuthField = <K extends keyof SetupAuthValues>(key: K, value: SetupAuthValues[K]) =>
+    setAuth((prev) => ({ ...prev, [key]: value }));
 
   const goToTemplates = () => {
     const result = validateAppearance(values);
@@ -104,19 +115,37 @@ export function SetupWizard() {
     else setFormError(res.error.message);
   };
 
-  const finish = async () => {
-    const result = validateAppearance(values);
+  const goToFinish = () => {
+    const result = validateSetupAuth(auth);
     if (!result.success) {
-      setErrors(result.fieldErrors);
+      setAuthErrors(result.fieldErrors);
+      return;
+    }
+    setAuthErrors({});
+    setStep(4);
+  };
+
+  const finish = async () => {
+    const appearance = validateAppearance(values);
+    if (!appearance.success) {
+      setErrors(appearance.fieldErrors);
       setStep(1);
       return;
     }
+    const authResult = validateSetupAuth(auth);
+    if (!authResult.success) {
+      setAuthErrors(authResult.fieldErrors);
+      setStep(3);
+      return;
+    }
+
     setBusy(true);
     setFormError(null);
-    const res = await completeSetup(buildCompletePayload(values));
+    const res = await completeSetup(buildCompletePayload(values, authResult.auth));
     setBusy(false);
     if (res.ok) {
-      router.push("/");
+      // If an admin was created, auth is now active — go to login. Otherwise dashboard.
+      router.push("skip" in authResult.auth ? "/" : "/login");
     } else {
       setErrors(apiErrorToAppearanceErrors(res.error));
       setFormError(res.error.message);
@@ -127,7 +156,7 @@ export function SetupWizard() {
     <Card className="mx-auto max-w-lg">
       <CardHeader>
         <CardTitle>Set up Bally&apos;s Dashboard</CardTitle>
-        <span className="text-xs text-foreground/50">Step {step} of 3</span>
+        <span className="text-xs text-foreground/50">Step {step} of 4</span>
       </CardHeader>
       <CardContent className="space-y-4">
         {step === 1 ? (
@@ -269,6 +298,87 @@ export function SetupWizard() {
 
         {step === 3 ? (
           <div className="space-y-3">
+            <p className="text-sm text-foreground/60">Secure your dashboard.</p>
+            <div className="space-y-2">
+              <label className="flex cursor-pointer items-start gap-2 rounded-md border border-foreground/15 p-3">
+                <input
+                  type="radio"
+                  name="authmode"
+                  className="mt-1"
+                  checked={auth.mode === "create"}
+                  onChange={() => setAuthField("mode", "create")}
+                />
+                <span>
+                  <span className="text-sm font-medium">Create an admin login</span>
+                  <span className="block text-xs text-foreground/60">
+                    Require a username and password to access the dashboard.
+                  </span>
+                </span>
+              </label>
+              <label className="flex cursor-pointer items-start gap-2 rounded-md border border-foreground/15 p-3">
+                <input
+                  type="radio"
+                  name="authmode"
+                  className="mt-1"
+                  checked={auth.mode === "skip"}
+                  onChange={() => setAuthField("mode", "skip")}
+                />
+                <span>
+                  <span className="text-sm font-medium">Skip authentication</span>
+                  <span className="block text-xs text-amber-600 dark:text-amber-400">
+                    Only recommended behind Tailscale, a VPN, or a trusted reverse proxy.
+                  </span>
+                </span>
+              </label>
+            </div>
+
+            {auth.mode === "create" ? (
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium" htmlFor="a-user">
+                    Admin username
+                  </label>
+                  <Input id="a-user" value={auth.username} onChange={(e) => setAuthField("username", e.target.value)} />
+                  <FieldError messages={authErrors.username} />
+                </div>
+                <div>
+                  <label className="text-sm font-medium" htmlFor="a-pass">
+                    Password (min 8 characters)
+                  </label>
+                  <Input
+                    id="a-pass"
+                    type="password"
+                    value={auth.password}
+                    onChange={(e) => setAuthField("password", e.target.value)}
+                  />
+                  <FieldError messages={authErrors.password} />
+                </div>
+                <div>
+                  <label className="text-sm font-medium" htmlFor="a-confirm">
+                    Confirm password
+                  </label>
+                  <Input
+                    id="a-confirm"
+                    type="password"
+                    value={auth.confirm}
+                    onChange={(e) => setAuthField("confirm", e.target.value)}
+                  />
+                  <FieldError messages={authErrors.confirm} />
+                </div>
+              </div>
+            ) : null}
+
+            <div className="flex justify-between">
+              <Button variant="outline" onClick={() => setStep(2)}>
+                Back
+              </Button>
+              <Button onClick={goToFinish}>Next</Button>
+            </div>
+          </div>
+        ) : null}
+
+        {step === 4 ? (
+          <div className="space-y-3">
             <p className="text-sm text-foreground/60">Review and finish.</p>
             <ul className="space-y-1 text-sm">
               <li>
@@ -280,10 +390,14 @@ export function SetupWizard() {
               <li>
                 <span className="text-foreground/60">Timezone:</span> {values.timezone}
               </li>
+              <li>
+                <span className="text-foreground/60">Auth:</span>{" "}
+                {auth.mode === "create" ? `enabled (admin: ${auth.username})` : "disabled (skipped)"}
+              </li>
             </ul>
             {formError ? <p className="text-sm text-rose-600 dark:text-rose-400">{formError}</p> : null}
             <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setStep(2)}>
+              <Button variant="outline" onClick={() => setStep(3)}>
                 Back
               </Button>
               <Button disabled={busy} onClick={finish}>
