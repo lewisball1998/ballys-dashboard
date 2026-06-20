@@ -17,13 +17,23 @@ export const DEFAULT_WIDGETS: DashboardWidgetDTO[] = [
     config: {},
   },
   {
+    id: "core:favourite-apps",
+    moduleId: "core",
+    widgetId: "favourite-apps",
+    componentKey: "favourite-apps",
+    title: "Quick Launch",
+    size: { w: 2, h: 1 },
+    order: 1,
+    config: {},
+  },
+  {
     id: "core:app-health-summary",
     moduleId: "core",
     widgetId: "app-health-summary",
     componentKey: "app-health-summary",
     title: "App Health",
     size: { w: 1, h: 1 },
-    order: 1,
+    order: 2,
     config: {},
   },
   {
@@ -33,7 +43,7 @@ export const DEFAULT_WIDGETS: DashboardWidgetDTO[] = [
     componentKey: "notifications",
     title: "Notifications",
     size: { w: 1, h: 1 },
-    order: 2,
+    order: 3,
     config: {},
   },
 ];

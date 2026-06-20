@@ -124,7 +124,7 @@ export function AppForm({ editingId, initial, categories, onClose, onSaved }: Ap
           </div>
           <div>
             <label className="text-sm font-medium" htmlFor="app-health-url">
-              Health URL (optional — falls back to URL)
+              Health URL (optional)
             </label>
             <Input
               id="app-health-url"
@@ -132,6 +132,11 @@ export function AppForm({ editingId, initial, categories, onClose, onSaved }: Ap
               onChange={(e) => set("healthUrl", e.target.value)}
               placeholder="https://"
             />
+            <p className="mt-1 text-xs text-muted">
+              Leave blank to use the app URL. Checks run from the dashboard server, not your
+              browser, so DNS/routing/TLS must work from inside the container. For internal HTTPS
+              with a self-signed certificate, enable trusted-internal TLS below.
+            </p>
             <FieldError messages={errors.healthUrl} />
           </div>
 
@@ -159,6 +164,25 @@ export function AppForm({ editingId, initial, categories, onClose, onSaved }: Ap
                 onChange={(e) => set("healthEnabled", e.target.checked)}
               />
               Health checks
+            </label>
+          </div>
+
+          <div className="rounded-lg border border-border bg-surface-2/30 p-3">
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={values.healthInsecureTls}
+                onChange={(e) => set("healthInsecureTls", e.target.checked)}
+              />
+              <span>
+                Allow self-signed TLS for this health check
+                <span className="mt-0.5 block text-xs text-muted">
+                  For trusted internal services only (e.g. a NAS or admin panel with a self-signed
+                  certificate). Skips TLS verification for this app&rsquo;s health check only — every
+                  other check keeps secure verification.
+                </span>
+              </span>
             </label>
           </div>
 

@@ -1,0 +1,1 @@
+ALTER TABLE `apps` ADD `health_insecure_tls` integer DEFAULT false NOT NULL;

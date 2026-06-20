@@ -6,9 +6,17 @@ import * as schema from "./schema";
 import { env } from "@/lib/env";
 
 /**
- * SQLite + Drizzle client. A single connection is reused across the process
- * (and across dev hot-reloads via globalThis) to avoid "database is locked"
- * errors from multiple WAL writers.
+ * SQLite + Drizzle client.
+ *
+ * The connection is opened **lazily** — nothing touches SQLite at module import
+ * time. This is deliberate: `next build` imports API route/service modules to
+ * collect their metadata, and if importing those modules opened the database,
+ * concurrent build workers would each open the fresh WAL file and intermittently
+ * fail with "database is locked". Deferring the open to first real use (a query
+ * at runtime) keeps the build from ever creating or touching SQLite.
+ *
+ * A single connection is reused across the process (and across dev hot-reloads
+ * via globalThis) to avoid "database is locked" from multiple WAL writers.
  */
 function createDb() {
   // ":memory:" (and file::memory: forms) must be passed through untouched so
@@ -26,12 +34,39 @@ function createDb() {
   return drizzle(sqlite, { schema });
 }
 
-const globalForDb = globalThis as unknown as {
-  __ballysDb?: ReturnType<typeof createDb>;
-};
+export type DB = ReturnType<typeof createDb>;
 
-export const db = globalForDb.__ballysDb ?? createDb();
-if (env.NODE_ENV !== "production") globalForDb.__ballysDb = db;
+const globalForDb = globalThis as unknown as { __ballysDb?: DB };
+let instance: DB | undefined;
 
-export type DB = typeof db;
+/**
+ * Lazily create (once) and return the SQLite/Drizzle client. The connection is
+ * opened on the first call — never at import time — and cached for the process
+ * lifetime (and across dev hot-reloads via globalThis). This is the canonical
+ * runtime accessor; call it inside request handlers / service functions.
+ */
+export function getDb(): DB {
+  instance ??= globalForDb.__ballysDb ?? createDb();
+  if (env.NODE_ENV !== "production") globalForDb.__ballysDb = instance;
+  return instance;
+}
+
+/**
+ * Back-compat accessor that behaves exactly like the Drizzle client but resolves
+ * the (lazy) connection on first property access via {@link getDb}. Existing call
+ * sites keep using `db.select()/insert()/transaction()/…` unchanged, and merely
+ * *importing* this module still never opens SQLite. Prefer {@link getDb} in new
+ * code.
+ */
+export const db: DB = new Proxy({} as DB, {
+  get(_target, prop) {
+    const real = getDb();
+    const value = Reflect.get(real as object, prop);
+    return typeof value === "function" ? value.bind(real) : value;
+  },
+  has(_target, prop) {
+    return prop in (getDb() as object);
+  },
+}) as DB;
+
 export { schema };

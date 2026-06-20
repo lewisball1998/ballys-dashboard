@@ -25,6 +25,7 @@ function app(partial: Partial<AppDTO>): AppDTO {
     authRequired: false,
     healthUrl: null,
     healthEnabled: false,
+    healthInsecureTls: false,
     isHidden: false,
     lifecycle: "active",
     sortOrder: 0,

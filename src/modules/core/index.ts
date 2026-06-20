@@ -36,6 +36,7 @@ export const coreModule: ModuleDefinition = {
     health: [appHealthProvider],
     widgets: [
       { id: "system-overview", title: "System", componentKey: "system-overview" },
+      { id: "favourite-apps", title: "Quick Launch", componentKey: "favourite-apps" },
       { id: "notifications", title: "Notifications", componentKey: "notifications" },
       { id: "app-health-summary", title: "App Health", componentKey: "app-health-summary" },
     ],

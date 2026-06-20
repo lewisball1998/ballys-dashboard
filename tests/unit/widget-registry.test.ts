@@ -4,7 +4,7 @@ import { DEFAULT_WIDGETS } from "@/components/dashboard/default-widgets";
 
 describe("widget registry", () => {
   it("resolves every known componentKey to a component", () => {
-    for (const key of ["system-overview", "app-health-summary", "notifications"]) {
+    for (const key of ["system-overview", "app-health-summary", "notifications", "favourite-apps"]) {
       expect(typeof getWidgetComponent(key)).toBe("function");
     }
   });

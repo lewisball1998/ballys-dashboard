@@ -18,6 +18,8 @@ export const appCreateSchema = z.object({
   /** When omitted/null, health checks (if enabled) use `url`. */
   healthUrl: urlSchema.nullish(),
   healthEnabled: z.boolean().optional(),
+  /** Per-app trusted-internal escape hatch; secure TLS stays the default. */
+  healthInsecureTls: z.boolean().optional(),
   sortOrder: z.number().int().min(0).optional(),
 });
 
