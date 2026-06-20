@@ -26,7 +26,11 @@ RUN pnpm build
 # --- runner: minimal runtime image ------------------------------------------
 FROM base AS runner
 WORKDIR /app
-ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 \
+# HOSTNAME=0.0.0.0 makes the Next.js standalone server bind to all interfaces.
+# Without it, Docker injects HOSTNAME (the container id) and the server fails to
+# listen on a reachable address — so the image is correct for `docker run`/k8s
+# too, not only docker-compose.
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=0.0.0.0 PORT=3000 \
     DATABASE_PATH=/app/data/ballys.db
 
 # Run as non-root.

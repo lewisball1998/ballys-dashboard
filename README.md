@@ -123,6 +123,16 @@ pnpm typecheck && pnpm lint && pnpm test && pnpm build
   auth **enabled**.
 - The Docker socket is **not** mounted in v0.1 (container management is v0.2 and opt-in).
 - Multi-arch: amd64 is the primary/tested target; arm64 builds from the same Dockerfile.
+- **Host binding:** the image sets `HOSTNAME=0.0.0.0` so the server listens on all
+  interfaces. `PORT` is the *internal* container port (3000); choose your host port
+  in the `ports:` mapping (e.g. `"3020:3000"`). Don't set `PORT` to the host port.
+
+### Troubleshooting
+
+- **Healthcheck fails / connection refused or reset on the mapped port** (seen on
+  TrueNAS and similar): the container isn't binding to a reachable address. Ensure
+  `HOSTNAME=0.0.0.0` is set in the environment (it is by default in the provided
+  image + compose). This was fixed in v0.1.1.
 
 ## Configuration
 

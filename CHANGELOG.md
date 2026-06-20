@@ -2,6 +2,17 @@
 
 All notable changes to Bally's Dashboard are documented here.
 
+## 0.1.1 — Docker host-binding fix
+
+### Fixed
+- **Container networking** — the Next.js standalone server now binds to
+  `0.0.0.0` in Docker. Previously Docker set `HOSTNAME` to the container id, so
+  the server never listened on a reachable address: the Docker healthcheck failed
+  and host requests to the mapped port were refused/reset. Fixed by setting
+  `HOSTNAME=0.0.0.0` in the Dockerfile (so `docker run`/k8s are correct too) and
+  explicitly in `docker-compose.yml`. `PORT` stays the internal container port
+  (3000); map it on the host via `ports:`.
+
 ## 0.1.0 — Core usable dashboard
 
 First usable release. A homelab infrastructure command centre that works with
