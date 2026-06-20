@@ -23,8 +23,12 @@ describe("docker presentation logic", () => {
   });
 
   it("formats published and internal ports", () => {
-    expect(formatPort({ privatePort: 80, publicPort: 8080, type: "tcp" })).toBe("8080→80/tcp");
-    expect(formatPort({ privatePort: 443, publicPort: null, type: "tcp" })).toBe("443/tcp");
+    expect(formatPort({ privatePort: 80, publicPort: 8080, type: "tcp", hostScope: "all" })).toBe(
+      "8080→80/tcp",
+    );
+    expect(formatPort({ privatePort: 443, publicPort: null, type: "tcp", hostScope: "all" })).toBe(
+      "443/tcp",
+    );
   });
 
   it("formats relative created time", () => {

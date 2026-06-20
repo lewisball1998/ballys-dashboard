@@ -2,6 +2,48 @@
 
 All notable changes to Bally's Dashboard are documented here.
 
+## 0.2.1 — Import Apps from Docker (unreleased)
+
+### Added
+- **Import from Docker** — a new **Import from Docker** button on the Apps page
+  (`/apps/import`) that turns detected containers into launcher entries. It
+  reuses the v0.2.0 Docker read path and adds **no** new Docker capability — it
+  only reads container metadata and creates apps.
+- **Selective, never-automatic flow** — containers are shown as import candidates
+  with read-only hints (name, image, state, health, ports, compose
+  project/service). Nothing is selected by default; you pick candidates (or
+  "Select all"), edit each one's **name, URL, health URL, category, favourite,
+  health-checks, and trusted-internal TLS**, see a **review step**, and apps are
+  only created after you confirm. A result summary reports imported / skipped /
+  failed.
+- **Server suggestions (just hints)** — a suggested app name and a suggested URL
+  from a published port (using `localhost`, clearly editable; blank when no clear
+  port). Reuses the existing app-create validation, so a valid `http(s)` URL is
+  required to import.
+- **Safety hints** — likely database/infrastructure/helper containers are flagged
+  "Likely internal service" (never hidden), and apps that match an existing app
+  by URL or name are flagged and **skipped** rather than silently duplicated
+  (against existing apps and within the same batch).
+
+### Changed
+- **Smarter URL suggestions** — the importer no longer defaults URLs to
+  `localhost`. The App URL is built from clear parts: **scheme** (https for host
+  port 443, else http), an editable **Docker host / base address** defaulted from
+  the hostname you opened the dashboard with, and a **published port** you pick
+  when several exist — or a **Custom URL** for reverse-proxy addresses. `0.0.0.0`
+  and `::` are treated as "published on the Docker host"; a `127.0.0.1`-only
+  binding, or a loopback dashboard hostname, raises a clear warning. The Health
+  URL defaults to the App URL. A non-sensitive port `hostScope` (all / loopback /
+  specific) is now surfaced (the raw host IP is still never exposed).
+- **Import from setup** — the setup wizard's apps step now offers **Import from
+  Docker** (reusing the same flow, embedded), alongside manual setup and skip;
+  shows a helpful message when Docker access isn't enabled.
+
+### Notes
+- **No DB schema change.** Duplicate detection is by name/URL only; the source
+  container id is not persisted on the app. No destructive/bulk operations were
+  added — imported apps are managed through the normal Apps flow.
+
 ## 0.2.0 — Docker Command Centre (unreleased)
 
 ### Added

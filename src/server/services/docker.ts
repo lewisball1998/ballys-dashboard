@@ -13,6 +13,7 @@ import type {
   DockerGroupDTO,
   DockerHealth,
   DockerPortDTO,
+  DockerPortHostScope,
 } from "@/lib/types";
 
 /**
@@ -27,6 +28,7 @@ import type {
 // --- Raw Engine shapes (the subset we read) ---------------------------------
 
 interface RawPort {
+  IP?: string;
   PrivatePort?: number;
   PublicPort?: number;
   Type?: string;
@@ -78,6 +80,14 @@ function cleanName(names: string[] | undefined): string {
   return first.replace(/^\//, "") || "unnamed";
 }
 
+/** Reachability scope of a host binding (the specific IP is never surfaced).
+ * `0.0.0.0`/`::`/none = all interfaces; `127.0.0.1`/`::1` = loopback only. */
+function hostScopeOf(ip: string | undefined): DockerPortHostScope {
+  if (!ip || ip === "0.0.0.0" || ip === "::") return "all";
+  if (ip === "127.0.0.1" || ip === "::1") return "loopback";
+  return "specific";
+}
+
 /** Dedupe + normalise the published ports (the Engine lists one entry per host
  * IP family, so 0.0.0.0 and :: collapse to a single logical mapping). */
 function mapPorts(ports: RawPort[] | undefined): DockerPortDTO[] {
@@ -89,8 +99,14 @@ function mapPorts(ports: RawPort[] | undefined): DockerPortDTO[] {
       privatePort: p.PrivatePort,
       publicPort: typeof p.PublicPort === "number" ? p.PublicPort : null,
       type: (p.Type ?? "tcp").toLowerCase(),
+      hostScope: hostScopeOf(p.IP),
     };
-    seen.set(`${dto.type}:${dto.privatePort}->${dto.publicPort ?? ""}`, dto);
+    // Prefer an "all"/"specific" binding over a loopback duplicate of the same
+    // mapping, so a service also bound to 0.0.0.0 isn't reported loopback-only.
+    const key = `${dto.type}:${dto.privatePort}->${dto.publicPort ?? ""}`;
+    const prev = seen.get(key);
+    if (prev && prev.hostScope !== "loopback" && dto.hostScope === "loopback") continue;
+    seen.set(key, dto);
   }
   return [...seen.values()].sort(
     (a, b) => (b.publicPort ?? 0) - (a.publicPort ?? 0) || a.privatePort - b.privatePort,

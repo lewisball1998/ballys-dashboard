@@ -20,12 +20,22 @@ export type DockerContainerState =
 /** Container health, where a HEALTHCHECK is defined ("none" when there isn't). */
 export type DockerHealth = "healthy" | "unhealthy" | "starting" | "none";
 
-/** A published/exposed port. The host IP binding is intentionally omitted. */
+/**
+ * Host-binding scope of a port (derived; the specific host IP is intentionally
+ * never surfaced). "all" = published on all interfaces (`0.0.0.0`/`::`),
+ * "loopback" = `127.0.0.1`/`::1` only (reachable only from the Docker host),
+ * "specific" = bound to some other host IP. Internal-only ports report "all".
+ */
+export type DockerPortHostScope = "all" | "loopback" | "specific";
+
+/** A published/exposed port. The specific host IP binding is intentionally
+ * omitted — only the reachability {@link DockerPortHostScope} is surfaced. */
 export interface DockerPortDTO {
   privatePort: number;
   publicPort: number | null;
   /** "tcp" | "udp" | "sctp". */
   type: string;
+  hostScope: DockerPortHostScope;
 }
 
 export interface DockerContainerDTO {
