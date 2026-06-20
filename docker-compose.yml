@@ -12,6 +12,11 @@ services:
       - "3000:3000"
     environment:
       NODE_ENV: production
+      # Bind the Next.js standalone server to all interfaces. Without this, Docker
+      # sets HOSTNAME to the container id and the server never listens on a
+      # reachable address (healthcheck + port mapping fail). PORT stays the
+      # internal container port; map it on the host via `ports:` above.
+      HOSTNAME: "0.0.0.0"
       PORT: "3000"
       DATABASE_PATH: /app/data/ballys.db
       # Recovery escape hatch: bypass auth if locked out (CSRF still enforced).
