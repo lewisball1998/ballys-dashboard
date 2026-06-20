@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import type { ZodError, ZodTypeAny } from "zod";
 import { ok, err } from "@/lib/types";
+import { requireApiAuth } from "@/server/auth/guard";
 
 /**
  * Route-handler helpers. Every API route returns the shared `ApiResponse`
@@ -69,14 +70,56 @@ export function parseQuery<S extends ZodTypeAny>(
   return parseBody(schema, obj);
 }
 
-/** Wrap a handler so any uncaught error becomes a 500 envelope instead of a throw. */
+const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+/**
+ * Same-origin check for CSRF protection on unsafe methods. The `Origin` host
+ * must match the request's own host (`x-forwarded-host` ?? `host` ?? URL host).
+ * Browsers always send `Origin` on cross-origin and same-origin non-GET fetches;
+ * non-browser clients (scripts) must send a matching `Origin` header.
+ */
+export function isSameOrigin(req: NextRequest): boolean {
+  const origin = req.headers.get("origin");
+  if (!origin) return false;
+  let originHost: string;
+  try {
+    originHost = new URL(origin).host;
+  } catch {
+    return false;
+  }
+  const target = req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? req.nextUrl.host;
+  return Boolean(target) && originHost === target;
+}
+
+/**
+ * Wrap a handler: rejects cross-origin unsafe methods (403 csrf_failed) and turns
+ * any uncaught error into a 500 envelope. GET/HEAD are unaffected by the CSRF check.
+ */
 export function route<C = unknown>(handler: (req: NextRequest, ctx: C) => Promise<NextResponse> | NextResponse) {
   return async (req: NextRequest, ctx: C): Promise<NextResponse> => {
     try {
+      if (UNSAFE_METHODS.has(req.method) && !isSameOrigin(req)) {
+        return jsonError("csrf_failed", "Cross-origin request blocked", 403);
+      }
       return await handler(req, ctx);
     } catch (error) {
       console.error("[api] unhandled error:", error);
       return jsonError("internal_error", "Internal server error", 500);
     }
   };
+}
+
+/**
+ * Like `route()`, plus auth: when auth is active (enabled + admin exists, and not
+ * AUTH_DISABLE) an unauthenticated request gets 401. Passes through when auth is
+ * inactive. CSRF (via `route`) still applies in all cases.
+ */
+export function protectedRoute<C = unknown>(
+  handler: (req: NextRequest, ctx: C) => Promise<NextResponse> | NextResponse,
+) {
+  return route<C>(async (req, ctx) => {
+    const denied = requireApiAuth(req);
+    if (denied) return denied;
+    return handler(req, ctx);
+  });
 }

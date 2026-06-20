@@ -11,6 +11,10 @@ const envSchema = z.object({
   // Optional in v0.1 (no module secrets yet); required once modules store
   // credentials in v0.2. Validated lazily where it is actually used.
   APP_ENCRYPTION_KEY: z.string().optional(),
+  // Recovery escape hatch: set to "1" to bypass auth enforcement (CSRF still
+  // applies). The auth guard reads process.env directly so this can be toggled
+  // without a rebuild.
+  AUTH_DISABLE: z.string().optional(),
 });
 
 export const env = envSchema.parse(process.env);

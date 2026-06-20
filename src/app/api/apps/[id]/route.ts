@@ -1,4 +1,4 @@
-import { route, jsonOk, jsonError, parseBody, parseJson } from "@/server/api/respond";
+import { protectedRoute, jsonOk, jsonError, parseBody, parseJson } from "@/server/api/respond";
 import { appUpdateSchema, idParamSchema } from "@/lib/validation";
 import { deleteApp, getApp, updateApp } from "@/server/services/apps";
 
@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 type Ctx = { params: Promise<{ id: string }> };
 
-export const GET = route<Ctx>(async (req, ctx) => {
+export const GET = protectedRoute<Ctx>(async (req, ctx) => {
   const idRes = parseBody(idParamSchema, await ctx.params);
   if (!idRes.success) return idRes.response;
   const app = getApp(idRes.data.id);
@@ -14,7 +14,7 @@ export const GET = route<Ctx>(async (req, ctx) => {
   return jsonOk(app);
 });
 
-export const PATCH = route<Ctx>(async (req, ctx) => {
+export const PATCH = protectedRoute<Ctx>(async (req, ctx) => {
   const idRes = parseBody(idParamSchema, await ctx.params);
   if (!idRes.success) return idRes.response;
   const parsed = await parseJson(req, appUpdateSchema);
@@ -25,7 +25,7 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
   return jsonOk(updated);
 });
 
-export const DELETE = route<Ctx>(async (req, ctx) => {
+export const DELETE = protectedRoute<Ctx>(async (req, ctx) => {
   const idRes = parseBody(idParamSchema, await ctx.params);
   if (!idRes.success) return idRes.response;
   if (!deleteApp(idRes.data.id)) return jsonError("not_found", "App not found", 404);

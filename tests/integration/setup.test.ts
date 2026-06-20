@@ -46,7 +46,7 @@ describe("setup completion", () => {
   });
 
   it("applies optional final settings on completion", () => {
-    completeSetup({ dashboardName: "Home Lab", theme: "dark", accent: "emerald" });
+    completeSetup({ settings: { dashboardName: "Home Lab", theme: "dark", accent: "emerald" } });
     const s = getSettings();
     expect(s.dashboardName).toBe("Home Lab");
     expect(s.theme).toBe("dark");

@@ -1,6 +1,6 @@
-import { route, jsonOk } from "@/server/api/respond";
+import { protectedRoute, jsonOk } from "@/server/api/respond";
 import { dismissAll } from "@/server/services/notifications";
 
 export const dynamic = "force-dynamic";
 
-export const PATCH = route(async () => jsonOk({ updated: dismissAll() }));
+export const PATCH = protectedRoute(async () => jsonOk({ updated: dismissAll() }));

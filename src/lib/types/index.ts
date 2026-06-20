@@ -14,3 +14,4 @@ export * from "./widgets";
 export * from "./metrics";
 export * from "./notifications";
 export * from "./setup";
+export * from "./auth";

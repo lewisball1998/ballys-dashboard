@@ -14,3 +14,4 @@ Lightweight ADRs (one decision per file). Status is one of
 | [0007](0007-optional-single-user-auth.md) | Optional single-user auth (on by default) | Accepted |
 | [0008](0008-container-metrics-and-docker-socket.md) | Container-visible metrics; opt-in Docker socket | Accepted |
 | [0009](0009-multi-arch-image.md) | Multi-arch image, amd64-first | Accepted |
+| [0010](0010-auth-csrf-readiness.md) | Auth/CSRF/readiness enforcement (Node-runtime, no middleware) | Accepted |

@@ -13,10 +13,15 @@ Architect-owned — changes here are versioned and broadcast.
 - **Validation:** request bodies/queries are parsed with the named zod schema;
   failures return `400` with `code: "validation_error"` and `fields` from
   `flatten()`.
-- **Mutations:** all non-GET routes are same-origin checked + CSRF-protected
-  (enforced in the v0.1 hardening phase). Auth, when enabled, gates all routes.
-- **Errors:** `400` validation, `401` unauthenticated, `404` not_found,
-  `409` conflict, `500` internal.
+- **Mutations (CSRF):** the `route()` wrapper same-origin-checks every
+  `POST`/`PATCH`/`DELETE` — cross-origin → `403 csrf_failed`.
+- **Auth:** `protectedRoute()` returns `401 unauthenticated` when auth is *active*
+  (enabled in settings + an admin exists + not `AUTH_DISABLE`); passes through when
+  inactive (CSRF still applies). Public: `GET /api/health`, `GET /api/health/ready`,
+  `/api/auth/*`, `GET /api/setup/status`, and `/api/setup/seed|complete` **only while
+  `!setupCompleted`** (auth-gated once complete).
+- **Errors:** `400` validation, `401` unauthenticated, `403` csrf_failed,
+  `404` not_found, `409` conflict, `500` internal, `503` not_ready.
 
 ## Endpoints
 
@@ -30,7 +35,7 @@ Architect-owned — changes here are versioned and broadcast.
 | Method | Path | Request schema | Response data | Notes |
 |---|---|---|---|---|
 | GET | `/api/setup/status` | — | `SetupStatusDTO` | setupCompleted + current appearance + app/category counts + starter templates |
-| POST | `/api/setup/complete` | `setupCompleteSchema` (`{ settings? }`) | `SetupStatusDTO` | applies optional final settings then marks complete; idempotent; never destroys data |
+| POST | `/api/setup/complete` | `setupCompleteSchema` (`{ settings?, auth? }`) | `SetupStatusDTO` | optional final settings + auth (admin creds → enable, or `{skip:true}` → disable); marks complete; idempotent; never destroys data |
 | POST | `/api/setup/seed` | `setupSeedSchema` (`{ template: "blank" \| "homelab" }`) | `SetupSeedResultDTO` | seeds generic starter categories; idempotent (skips existing by name); no starter apps in v0.1 |
 
 > `SetupStatusDTO` / `SetupSeedResultDTO` + `setupCompleteSchema` / `setupSeedSchema`
@@ -107,6 +112,29 @@ transitions + system threshold breaches/recoveries), deduplicated per
 > added by Backend in Phase 3 (the contract previously deferred them); additive,
 > pending Architect ratification.
 
+### Auth (Phase 5 hardening)
+Single admin user; optional (`authEnabled` setting). scrypt password hashing;
+session cookie `bd_session` (httpOnly, SameSite=Lax, Secure on HTTPS) carrying a
+random token whose sha256 is stored in `sessions`.
+
+| Method | Path | Request schema | Response data | Notes |
+|---|---|---|---|---|
+| POST | `/api/auth/login` | `loginSchema` | `AuthStatusDTO` | sets session cookie; `401 invalid_credentials` on failure |
+| POST | `/api/auth/logout` | — | `{ ok: true }` | revokes session + clears cookie |
+| GET | `/api/auth/session` | — | `AuthStatusDTO` (`{ authEnabled, authenticated, needsAdmin, username }`) | public |
+
+### Health & readiness (Phase 5)
+| Method | Path | Response data | Notes |
+|---|---|---|---|
+| GET | `/api/health` | `{ status, version, time }` | liveness; dependency-free; public |
+| GET | `/api/health/ready` | `{ ready: true }` or `503 not_ready` | readiness (DB `SELECT 1`); public |
+
+> `AuthStatusDTO` + `loginSchema` + the `setupCompleteSchema.auth` block were
+> added by Backend in Phase 5 (ratified). Enforcement lives in the Node runtime
+> (`route()`/`protectedRoute()` for APIs; server layout helpers for pages) — never
+> in Edge middleware (better-sqlite3 is Node-only). `AUTH_DISABLE=1` bypasses auth
+> for recovery (CSRF still applies).
+
 ## Source of truth
-- Types: `src/lib/types/{settings,categories,apps,health,widgets,metrics,notifications,common}.ts`
-- Schemas: `src/lib/validation/{settings,categories,apps,health,widgets,metrics,notifications,common}.ts`
+- Types: `src/lib/types/{settings,categories,apps,health,widgets,metrics,notifications,setup,auth,common}.ts`
+- Schemas: `src/lib/validation/{settings,categories,apps,health,widgets,metrics,notifications,setup,auth,common}.ts`

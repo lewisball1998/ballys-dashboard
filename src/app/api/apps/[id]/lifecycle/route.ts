@@ -1,4 +1,4 @@
-import { route, jsonOk, jsonError, parseBody, parseJson } from "@/server/api/respond";
+import { protectedRoute, jsonOk, jsonError, parseBody, parseJson } from "@/server/api/respond";
 import { appLifecycleActionSchema, idParamSchema } from "@/lib/validation";
 import { applyLifecycle } from "@/server/services/apps";
 
@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 type Ctx = { params: Promise<{ id: string }> };
 
-export const POST = route<Ctx>(async (req, ctx) => {
+export const POST = protectedRoute<Ctx>(async (req, ctx) => {
   const idRes = parseBody(idParamSchema, await ctx.params);
   if (!idRes.success) return idRes.response;
   const parsed = await parseJson(req, appLifecycleActionSchema);

@@ -1,4 +1,4 @@
-import { route, jsonOk, jsonError, parseBody, parseQuery } from "@/server/api/respond";
+import { protectedRoute, jsonOk, jsonError, parseBody, parseQuery } from "@/server/api/respond";
 import { healthHistoryQuerySchema, idParamSchema } from "@/lib/validation";
 import type { AppHealthResultDTO, AppHealthStatsDTO } from "@/lib/types";
 import { getApp } from "@/server/services/apps";
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 type Ctx = { params: Promise<{ id: string }> };
 
-export const GET = route<Ctx>(async (req, ctx) => {
+export const GET = protectedRoute<Ctx>(async (req, ctx) => {
   const idRes = parseBody(idParamSchema, await ctx.params);
   if (!idRes.success) return idRes.response;
   const queryRes = parseQuery(req.nextUrl.searchParams, healthHistoryQuerySchema);

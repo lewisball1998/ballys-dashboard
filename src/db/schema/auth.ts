@@ -2,8 +2,9 @@ import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 
 /**
  * Single-user auth (Q1/Q7: optional, on by default, single admin only — no
- * multi-user/RBAC in v0.1). Schema is present from v0.1; enforcement is wired in
- * the v0.1 hardening phase. Passwords are Argon2id hashes (never plaintext).
+ * multi-user/RBAC in v0.1). Enforcement is wired in the v0.1 hardening phase.
+ * Passwords are scrypt hashes (node:crypto, never plaintext); `sessions.id`
+ * stores sha256(token), not the raw token.
  */
 export const users = sqliteTable("users", {
   id: integer("id").primaryKey({ autoIncrement: true }),
