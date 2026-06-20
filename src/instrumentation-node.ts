@@ -12,6 +12,7 @@ import { events } from "@/server/events";
 import { dbNotificationSink } from "@/server/events/db-sink";
 import { seedSettings, getSettings } from "@/server/services/settings";
 import { createSystemMetricsJob } from "@/server/jobs/system-metrics";
+import { createAppHealthJob } from "@/server/jobs/app-health";
 
 let registered = false;
 
@@ -27,8 +28,9 @@ export function registerNode(): void {
   events.addSink(dbNotificationSink);
 
   // Register collection jobs, then start the scheduler.
-  const { systemMetricIntervalMs } = getSettings();
+  const { systemMetricIntervalMs, appHealthIntervalMs } = getSettings();
   scheduler.register(createSystemMetricsJob(systemMetricIntervalMs));
+  scheduler.register(createAppHealthJob(appHealthIntervalMs));
   scheduler.start();
 
   console.log("[boot] Bally's Dashboard engines initialised");

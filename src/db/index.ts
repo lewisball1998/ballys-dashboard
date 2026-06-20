@@ -11,8 +11,12 @@ import { env } from "@/lib/env";
  * errors from multiple WAL writers.
  */
 function createDb() {
-  const dbPath = resolve(env.DATABASE_PATH);
-  mkdirSync(dirname(dbPath), { recursive: true });
+  // ":memory:" (and file::memory: forms) must be passed through untouched so
+  // SQLite uses a true in-memory DB; resolving it would create a real file.
+  const raw = env.DATABASE_PATH;
+  const isMemory = raw === ":memory:" || raw.startsWith("file::memory:");
+  const dbPath = isMemory ? raw : resolve(raw);
+  if (!isMemory) mkdirSync(dirname(dbPath), { recursive: true });
 
   const sqlite = new Database(dbPath);
   sqlite.pragma("journal_mode = WAL");

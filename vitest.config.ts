@@ -19,5 +19,8 @@ export default defineConfig({
     env: {
       DATABASE_PATH: ":memory:",
     },
+    // Integration tests share one in-memory SQLite DB (the db singleton), so run
+    // test files serially to avoid one file's cleanup racing another's data.
+    fileParallelism: false,
   },
 });
