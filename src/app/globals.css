@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+/* Class-based dark mode (Q9). The Frontend agent wires the toggle in Phase 1;
+   "system" preference falls back to the media query below. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Design tokens. Accent colour set lands in Phase 1; this is the minimal base
+   so the scaffold renders correctly in light/dark. */
+:root {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --accent: #2563eb;
+}
+
+.dark {
+  --background: #0b1120;
+  --foreground: #e2e8f0;
+  --accent: #3b82f6;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    --background: #0b1120;
+    --foreground: #e2e8f0;
+    --accent: #3b82f6;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-accent: var(--accent);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}

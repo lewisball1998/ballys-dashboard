@@ -1,0 +1,26 @@
+services:
+  ballys-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ballys-dashboard:local
+    container_name: ballys-dashboard
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      DATABASE_PATH: /app/data/ballys.db
+      # Required once module secrets land in v0.2. Generate with:
+      #   node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+      # APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY}
+    volumes:
+      # Persists the SQLite database and uploaded icons across recreations.
+      - ./data:/app/data
+    # --- v0.2 ONLY: Docker module container management -----------------------
+    # The Docker socket is NOT mounted in v0.1. Mounting it grants root-equivalent
+    # control of the host and is opt-in + documented as privileged (see
+    # docs/adr/0008). Do not uncomment until the v0.2 Docker module ships.
+    # volumes:
+    #   - /var/run/docker.sock:/var/run/docker.sock:ro
