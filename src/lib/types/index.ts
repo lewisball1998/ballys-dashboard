@@ -12,6 +12,7 @@ export * from "./apps";
 export * from "./health";
 export * from "./widgets";
 export * from "./metrics";
+export * from "./docker";
 export * from "./notifications";
 export * from "./setup";
 export * from "./auth";

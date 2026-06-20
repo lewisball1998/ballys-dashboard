@@ -15,6 +15,12 @@ const envSchema = z.object({
   // applies). The auth guard reads process.env directly so this can be toggled
   // without a rebuild.
   AUTH_DISABLE: z.string().optional(),
+  // Docker Command Centre (v0.2). Path to the Docker Engine API unix socket the
+  // server talks to for container list/control. PRIVILEGED + opt-in: the socket
+  // is not mounted by default (ADR 0008 / docs/DOCKER.md). When it is absent the
+  // Docker page degrades to a clear "not configured" state. Never sent to the
+  // client.
+  DOCKER_SOCKET_PATH: z.string().min(1).default("/var/run/docker.sock"),
 });
 
 export const env = envSchema.parse(process.env);

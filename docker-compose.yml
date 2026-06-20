@@ -45,9 +45,21 @@ services:
     # without the right tmpfs mounts can make the container brittle. Revisit with
     # explicit cache tmpfs after verification.
     #
-    # --- v0.2 ONLY: Docker module container management -----------------------
-    # The Docker socket is NOT mounted in v0.1. Mounting it grants root-equivalent
-    # control of the host and is opt-in + documented as privileged (see
-    # docs/adr/0008). Do not uncomment until the v0.2 Docker module ships.
-    # volumes:
-    #   - /var/run/docker.sock:/var/run/docker.sock:ro
+    # --- v0.2: Docker Command Centre (OPT-IN, PRIVILEGED) --------------------
+    # The dashboard can list and start/stop/restart containers. This requires the
+    # Docker socket, which grants ROOT-EQUIVALENT control of the host — so it is
+    # opt-in and OFF by default (ADR 0008 + docs/DOCKER.md). Until you enable it
+    # the Docker page shows a clear "not configured" state.
+    #
+    # To enable, MERGE these into the `volumes:` / add the `group_add:` above
+    # (a service can only have one `volumes:` key — append, don't duplicate it):
+    #
+    #   volumes:
+    #     - ./data:/app/data
+    #     # Read-only is enough for list + start/stop/restart (no socket writes).
+    #     - /var/run/docker.sock:/var/run/docker.sock:ro
+    #   group_add:
+    #     # The container runs non-root with cap_drop: ALL; it must be in the
+    #     # host's docker group to use the socket. Replace with your host's docker
+    #     # GID (find it with:  getent group docker | cut -d: -f3 ).
+    #     - "999"
