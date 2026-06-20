@@ -1,28 +1,26 @@
 import type { ModuleDefinition, MetricProvider, HealthProvider } from "../types";
+import { collectSystemMetrics } from "@/server/system/collector";
 
 /**
  * Core module — always present, cannot be disabled. It owns the *built-in*
  * providers that make the dashboard useful with zero integrations.
  *
- * PHASE 0 = SKELETON. The providers below are stubs that return empty/unknown
- * results, present only to exercise the contract + registry wiring end-to-end.
- * Phase 1 (Backend) implements:
- *   - systemMetricsProvider: real CPU/RAM/storage/network from the host view
- *   - appHealthProvider:     real HTTP checks via the guarded fetch wrapper
+ * Phase 1: systemMetricsProvider is implemented (container-visible CPU/RAM/
+ * storage/network/uptime). appHealthProvider remains a stub until the launcher
+ * lands in Phase 2 (it will do guarded HTTP checks per enabled app then).
  */
 
 const systemMetricsProvider: MetricProvider = {
   id: "system",
   async collect() {
-    // TODO(phase1): read CPU/RAM/storage/network (container-visible by default).
-    return [];
+    return collectSystemMetrics();
   },
 };
 
 const appHealthProvider: HealthProvider = {
   id: "app-health",
   async check() {
-    // TODO(phase1): perform a guarded HTTP check per enabled app.
+    // TODO(phase2): perform a guarded HTTP check per enabled app.
     return { status: "unknown", checkedAt: new Date() };
   },
 };

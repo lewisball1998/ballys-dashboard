@@ -1,26 +1,14 @@
-import { z } from "zod";
-
 /**
- * Shared zod schemas used by API route handlers (server) and forms (client).
+ * Shared zod schemas. ⭐ ARCHITECT-OWNED barrel.
  *
- * OWNED BY: Product Architect. ⭐ contract file. Phase 0 ships only the schemas
- * needed to prove the pattern; Phase 1+ adds apps/categories/settings schemas.
+ * Used by API route handlers (server) and forms (client). Primitives live in
+ * ./common; one file per resource. Inferred input types are exported alongside
+ * each schema. Entity/response shapes live in `@/lib/types`.
  */
-
-/** A user-supplied URL accepted by the launcher / health checks. */
-export const urlSchema = z
-  .string()
-  .trim()
-  .url()
-  .refine((u) => /^https?:\/\//i.test(u), { message: "Only http(s) URLs are allowed" });
-
-export const severitySchema = z.enum(["info", "success", "warning", "error"]);
-export const healthStatusSchema = z.enum(["up", "down", "degraded", "unknown"]);
-
-/** Pagination params shared by list endpoints. */
-export const paginationSchema = z.object({
-  limit: z.coerce.number().int().min(1).max(200).default(50),
-  offset: z.coerce.number().int().min(0).default(0),
-});
-
-export type Pagination = z.infer<typeof paginationSchema>;
+export * from "./common";
+export * from "./settings";
+export * from "./categories";
+export * from "./apps";
+export * from "./health";
+export * from "./widgets";
+export * from "./metrics";

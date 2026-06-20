@@ -53,3 +53,14 @@ v0.1 event sources: app health transitions + CPU/RAM/storage threshold breaches.
 ## Data model
 See `src/db/schema/`. One generic `metrics` table serves all sources so a new
 provider only emits points — no per-integration schema change.
+
+## Contracts (⭐ Architect-owned)
+The seam between Backend and Frontend is a set of shared contracts so both can
+build in parallel:
+- **DTOs** (response/entity shapes, ISO-string timestamps): `src/lib/types/`
+- **Validation** (zod request/query schemas + inferred input types):
+  `src/lib/validation/`
+- **API contract** (endpoints, request/response mapping): `docs/architecture/api-contract.md`
+- **Plugin contract**: `src/modules/types.ts`
+
+Ownership and conflict rules: `docs/agents/ownership.md`.

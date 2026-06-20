@@ -8,10 +8,28 @@
 import { runMigrations } from "@/db/migrate";
 import { initializeModules } from "@/modules";
 import { scheduler } from "@/server/scheduler";
+import { events } from "@/server/events";
+import { dbNotificationSink } from "@/server/events/db-sink";
+import { seedSettings, getSettings } from "@/server/services/settings";
+import { createSystemMetricsJob } from "@/server/jobs/system-metrics";
+
+let registered = false;
 
 export function registerNode(): void {
+  if (registered) return;
+  registered = true;
+
   runMigrations();
   initializeModules();
+  seedSettings();
+
+  // Persist events (e.g. threshold breaches) as notifications.
+  events.addSink(dbNotificationSink);
+
+  // Register collection jobs, then start the scheduler.
+  const { systemMetricIntervalMs } = getSettings();
+  scheduler.register(createSystemMetricsJob(systemMetricIntervalMs));
   scheduler.start();
+
   console.log("[boot] Bally's Dashboard engines initialised");
 }
