@@ -2,6 +2,34 @@
 
 All notable changes to Bally's Dashboard are documented here.
 
+## 0.2.0 — Docker Command Centre (unreleased)
+
+### Added
+- **Docker Command Centre** — a new **Docker** page that lists your containers
+  grouped by Compose project, with state, health (when a `HEALTHCHECK` exists),
+  published ports, compose service, and created/status. A summary strip shows
+  running / stopped / restarting / unhealthy counts.
+- **Safe lifecycle actions** — start, stop, and restart containers. Stop and
+  restart require an explicit in-card confirmation. Container ids are validated
+  (`^[a-f0-9]{12,64}$`) before any action; all actions are POST + same-origin
+  (CSRF) protected and respect auth.
+- **Server-side Docker client** — talks to the Docker Engine API over the unix
+  socket using Node's built-in HTTP client (no third-party Docker dependency, no
+  shell execution). Only a safe subset of fields reaches the browser; the socket
+  is the single privileged choke point.
+- **Clear unavailable/error states** — not configured, permission denied,
+  unreachable, error, and empty are all handled with actionable guidance instead
+  of a raw failure.
+- **Docs** — `docs/DOCKER.md` covers enabling the (opt-in, privileged) Docker
+  socket, the safer socket-proxy alternative, and the safety limits;
+  `DOCKER_SOCKET_PATH` is documented in `.env.example` and `docker-compose.yml`.
+
+### Security notes
+- The Docker socket is **opt-in and off by default** (ADR 0008): mounting it
+  grants root-equivalent host control. A read-only mount is sufficient. No
+  exec/terminal, image/volume/network, or Compose-stack operations are exposed —
+  only start/stop/restart.
+
 ## 0.1.1 — Docker host-binding fix
 
 ### Fixed
@@ -52,8 +80,10 @@ config-file editing).
 
 ## Deferred (planned)
 
-- **v0.2** — Docker module / container controls (opt-in privileged socket);
-  secret-at-rest encryption (`APP_ENCRYPTION_KEY`) becomes load-bearing.
+- **v0.2.1 (proposed)** — "Import from Docker": discover running containers and
+  selectively import them into the Apps launcher (confirming URL, category,
+  favourite, and health check per app). Secret-at-rest encryption
+  (`APP_ENCRYPTION_KEY`) becomes load-bearing once modules store credentials.
 - **v0.3** — notes & reminders; widget drag-and-drop layout; import/export.
 - **v0.4+** — TrueNAS / Unraid / Portainer / Home Assistant / Plex / Jellyfin /
   Arr / Tailscale integrations, then AI (Ollama / Open WebUI / AnythingLLM).

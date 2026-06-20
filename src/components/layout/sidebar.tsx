@@ -8,6 +8,7 @@ import { useTheme } from "@/components/theme/theme-provider";
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard" },
   { href: "/apps", label: "Apps" },
+  { href: "/docker", label: "Docker" },
   { href: "/infrastructure", label: "Infrastructure" },
   { href: "/notifications", label: "Notifications" },
   { href: "/settings", label: "Settings" },

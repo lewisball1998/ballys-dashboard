@@ -3,9 +3,10 @@
 A homelab **infrastructure command centre** — not just an app launcher.
 Dashboard-first, modular, single-container, self-hosted.
 
-> **Status: v0.1.** Core platform, app launcher, notification centre, first-run
-> setup wizard, and optional single-user auth. See [`docs/roadmap.md`](docs/roadmap.md)
-> and [`CHANGELOG.md`](CHANGELOG.md).
+> **Status: v0.1 + v0.2 (in development).** Core platform, app launcher,
+> notification centre, first-run setup wizard, optional single-user auth, and the
+> opt-in **Docker Command Centre** (container view + safe start/stop/restart). See
+> [`docs/roadmap.md`](docs/roadmap.md) and [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Stack
 
@@ -76,6 +77,17 @@ it. In Compose, uncomment `AUTH_DISABLE: "1"` under `environment:`.
 - `GET /api/health/ready` — **readiness** (DB reachable + migrated → `200`, else `503`). Public.
 - The Docker `HEALTHCHECK` uses **readiness**, so the container is only "healthy"
   once the database is up.
+
+## Docker Command Centre
+
+The **Docker** page lists your containers (grouped by Compose project) with
+state, health, ports, and compose service, and lets you **start / stop /
+restart** them with confirmation.
+
+This is **opt-in and off by default** — it needs the Docker socket, which is
+privileged. Until you mount it the page shows a clear "not configured" state.
+See [`docs/DOCKER.md`](docs/DOCKER.md) for setup and the safety limits (no
+exec/terminal, no image/volume/network or stack deletion — only start/stop/restart).
 
 ## Data persistence
 
