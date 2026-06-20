@@ -47,24 +47,41 @@ filesystem paths, environment variables, or full command lines.
 
 ## Import apps from Docker (v0.2.1)
 
-The **Apps** page has an **Import from Docker** button that turns detected
-containers into launcher entries. It reuses the same read-only container data as
+The **Apps** page — and the **setup wizard** (step 2, where you add apps) — has
+an **Import from Docker** button that turns detected containers into launcher
+entries. Both reuse the exact same import flow; manual app setup stays available
+and Docker import is never forced. It reuses the same read-only container data as
 the Command Centre — it adds **no** new Docker capability (no lifecycle, exec,
 image, volume, network, or stack operations); it only reads metadata and creates
-app rows.
+app rows. If Docker access isn't configured, the importer shows a clear message
+pointing back to this guide.
 
 The flow is deliberately **selective** — nothing is imported automatically:
 
 1. Containers are listed as **import candidates** with read-only hints (name,
    image, state, health, published ports, compose project/service).
-2. For each candidate the server suggests an **app name** and, when a port is
-   published, a **suggested URL**. Suggestions use `localhost` and are **just a
-   guess** — you are expected to edit them (e.g. to a reverse-proxy URL like
-   `https://plex.example.com`). When no clear port exists the URL is left blank
-   and you must fill it in (a valid `http(s)` URL is required to import).
+2. For each candidate the server suggests an **app name** and shows the detected
+   **published ports** (read-only, with their reachability scope). The **App
+   URL** is then built from clear parts you control:
+   - **Scheme** — `http`/`https` (defaults to `https` for host port 443, `http`
+     for 80 and everything else).
+   - **Docker host / base address** — defaults to the hostname you used to open
+     the dashboard (e.g. open it at `http://192.168.50.2:3020` → host/base
+     defaults to `192.168.50.2`). It is **never** defaulted to `localhost`,
+     `0.0.0.0`, or `::` (those don't refer to the Docker host from inside the
+     dashboard container). If the dashboard is on `localhost`/`127.0.0.1`, a
+     warning asks you to enter your NAS/server LAN hostname or IP.
+   - **Published port** — prefilled from the detected host port; if a container
+     exposes several, you pick which one. A port bound to `127.0.0.1` is flagged
+     as reachable only from the Docker host.
+   - Or switch to **Custom URL** for a full reverse-proxy address like
+     `https://plex.example.com`.
+   The generated URL is labelled a **suggestion**; a valid `http(s)` URL is
+   required to import.
 3. Nothing is selected by default. Tick the containers you want (or **Select
-   all**), then edit each one's **name, URL, health URL, category, favourite,
-   health-checks, and trusted-internal TLS** before importing.
+   all**), then edit each one's **name, URL (parts or custom), health URL,
+   category, favourite, health-checks, and trusted-internal TLS** before
+   importing. The **Health URL** defaults to the App URL unless you override it.
 4. A **review step** lists exactly what will be created; apps are only created
    after you confirm.
 5. A **result summary** reports imported / skipped (duplicate) / failed counts.

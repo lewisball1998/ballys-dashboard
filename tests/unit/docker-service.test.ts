@@ -50,10 +50,40 @@ describe("docker service — pure mapping", () => {
     expect(dto.composeService).toBe("nginx");
     // duplicate host-IP entry collapses to one logical mapping
     expect(dto.ports).toHaveLength(2);
-    expect(dto.ports[0]).toEqual({ privatePort: 80, publicPort: 8080, type: "tcp" });
+    expect(dto.ports[0]).toEqual({ privatePort: 80, publicPort: 8080, type: "tcp", hostScope: "all" });
     expect(dto.createdAt).toBe(new Date(1_700_000_000 * 1000).toISOString());
-    // the DTO never carries a host IP binding field
+    // the DTO never carries a raw host IP binding field (only a derived scope)
     expect(JSON.stringify(dto)).not.toMatch(/"ip"/i);
+    expect(JSON.stringify(dto)).not.toMatch(/127\.0\.0\.1|0\.0\.0\.0/);
+  });
+
+  it("derives port host scope without leaking the raw host IP", () => {
+    const dto = mapContainer({
+      Id: "c".repeat(64),
+      Names: ["/svc"],
+      Ports: [
+        { IP: "0.0.0.0", PrivatePort: 80, PublicPort: 8080, Type: "tcp" },
+        { IP: "127.0.0.1", PrivatePort: 81, PublicPort: 8081, Type: "tcp" },
+        { IP: "192.168.1.10", PrivatePort: 82, PublicPort: 8082, Type: "tcp" },
+      ],
+    });
+    const scopeFor = (priv: number) => dto.ports.find((p) => p.privatePort === priv)?.hostScope;
+    expect(scopeFor(80)).toBe("all");
+    expect(scopeFor(81)).toBe("loopback");
+    expect(scopeFor(82)).toBe("specific");
+  });
+
+  it("prefers an all-interfaces binding over a loopback duplicate of the same port", () => {
+    const dto = mapContainer({
+      Id: "d".repeat(64),
+      Names: ["/svc"],
+      Ports: [
+        { IP: "127.0.0.1", PrivatePort: 80, PublicPort: 8080, Type: "tcp" },
+        { IP: "0.0.0.0", PrivatePort: 80, PublicPort: 8080, Type: "tcp" },
+      ],
+    });
+    expect(dto.ports).toHaveLength(1);
+    expect(dto.ports[0]!.hostScope).toBe("all");
   });
 
   it("handles missing fields defensively", () => {

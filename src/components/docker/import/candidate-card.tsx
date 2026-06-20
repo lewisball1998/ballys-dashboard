@@ -1,26 +1,39 @@
 "use client";
 
-import type { CategoryDTO, DockerImportCandidateDTO } from "@/lib/types";
+import type { CategoryDTO, DockerImportCandidateDTO, DockerPortDTO } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { formatPort, healthMeta, stateMeta } from "@/components/docker/docker-logic";
-import type { AppFieldErrors, AppFormValues } from "@/components/launcher/launcher-logic";
-import type { ImportRow } from "./import-logic";
+import {
+  appUrl,
+  hostBaseIssue,
+  publishedPorts,
+  selectedPortLoopback,
+  type ImportFieldErrors,
+  type ImportRow,
+  type ImportRowValues,
+} from "./import-logic";
 
 interface CandidateCardProps {
   candidate: DockerImportCandidateDTO;
   row: ImportRow;
   categories: CategoryDTO[];
-  errors?: AppFieldErrors;
+  errors?: ImportFieldErrors;
   onToggle: (selected: boolean) => void;
-  onChange: <K extends keyof AppFormValues>(key: K, value: AppFormValues[K]) => void;
+  onChange: <K extends keyof ImportRowValues>(key: K, value: ImportRowValues[K]) => void;
 }
 
 function FieldError({ messages }: { messages?: string[] }) {
   if (!messages?.length) return null;
   return <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">{messages.join(", ")}</p>;
+}
+
+function scopeLabel(port: DockerPortDTO): string {
+  if (port.publicPort == null) return "internal only";
+  if (port.hostScope === "loopback") return "Docker host only";
+  return "published on host";
 }
 
 export function CandidateCard({
@@ -34,6 +47,12 @@ export function CandidateCard({
   const state = stateMeta(candidate.state);
   const health = healthMeta(candidate.health);
   const fieldId = (f: string) => `import-${candidate.containerId}-${f}`;
+  const values = row.values;
+
+  const published = publishedPorts(candidate);
+  const generatedUrl = appUrl(candidate, values);
+  const hostIssue = hostBaseIssue(values.hostBase);
+  const portLoopback = selectedPortLoopback(candidate, values);
 
   return (
     <Card className={row.selected ? "ring-1 ring-accent/40" : undefined}>
@@ -75,7 +94,9 @@ export function CandidateCard({
             ) : null}
             <div className="truncate sm:col-span-2">
               <span className="text-muted/70">Ports:</span>{" "}
-              {candidate.ports.length > 0 ? candidate.ports.map(formatPort).join(", ") : "none published"}
+              {candidate.ports.length > 0
+                ? candidate.ports.map((p) => `${formatPort(p)} (${scopeLabel(p)})`).join(", ")
+                : "none published"}
             </div>
           </dl>
 
@@ -100,7 +121,7 @@ export function CandidateCard({
               </label>
               <Input
                 id={fieldId("name")}
-                value={row.values.name}
+                value={values.name}
                 onChange={(e) => onChange("name", e.target.value)}
               />
               <FieldError messages={errors?.name} />
@@ -111,7 +132,7 @@ export function CandidateCard({
               </label>
               <Select
                 id={fieldId("cat")}
-                value={row.values.categoryId == null ? "" : String(row.values.categoryId)}
+                value={values.categoryId == null ? "" : String(values.categoryId)}
                 onChange={(e) =>
                   onChange("categoryId", e.target.value === "" ? null : Number(e.target.value))
                 }
@@ -126,41 +147,156 @@ export function CandidateCard({
             </div>
           </div>
 
-          <div>
-            <label className="text-sm font-medium" htmlFor={fieldId("url")}>
-              URL
-            </label>
-            <Input
-              id={fieldId("url")}
-              value={row.values.url}
-              onChange={(e) => onChange("url", e.target.value)}
-              placeholder="https://app.example.com"
-            />
-            <p className="mt-1 text-xs text-muted">
-              Suggested from published ports — just a guess. Edit it to your real address, e.g. a
-              reverse-proxy URL like <code>https://plex.example.com</code>.
-            </p>
+          {/* --- URL builder --- */}
+          <div className="space-y-3 rounded-lg border border-border bg-surface-2/20 p-3">
+            <div className="flex flex-wrap items-center gap-4">
+              <span className="text-sm font-medium">App URL</span>
+              <label className="flex items-center gap-1.5 text-sm">
+                <input
+                  type="radio"
+                  name={fieldId("urlmode")}
+                  checked={values.urlMode === "port"}
+                  onChange={() => onChange("urlMode", "port")}
+                  disabled={published.length === 0}
+                />
+                Use detected port
+              </label>
+              <label className="flex items-center gap-1.5 text-sm">
+                <input
+                  type="radio"
+                  name={fieldId("urlmode")}
+                  checked={values.urlMode === "custom"}
+                  onChange={() => onChange("urlMode", "custom")}
+                />
+                Custom URL
+              </label>
+            </div>
+
+            {values.urlMode === "port" ? (
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div>
+                    <label className="text-xs font-medium text-muted" htmlFor={fieldId("scheme")}>
+                      Scheme
+                    </label>
+                    <Select
+                      id={fieldId("scheme")}
+                      value={values.scheme}
+                      onChange={(e) => onChange("scheme", e.target.value as ImportRowValues["scheme"])}
+                    >
+                      <option value="http">http</option>
+                      <option value="https">https</option>
+                    </Select>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="text-xs font-medium text-muted" htmlFor={fieldId("host")}>
+                      Docker host / base address
+                    </label>
+                    <Input
+                      id={fieldId("host")}
+                      value={values.hostBase}
+                      onChange={(e) => onChange("hostBase", e.target.value)}
+                      placeholder="e.g. 192.168.1.10 or nas.local"
+                    />
+                  </div>
+                </div>
+
+                {published.length > 1 ? (
+                  <div>
+                    <label className="text-xs font-medium text-muted" htmlFor={fieldId("port")}>
+                      Published port
+                    </label>
+                    <Select
+                      id={fieldId("port")}
+                      value={String(values.portIndex)}
+                      onChange={(e) => onChange("portIndex", Number(e.target.value))}
+                    >
+                      {candidate.ports.map((p, i) =>
+                        p.publicPort != null ? (
+                          <option key={i} value={String(i)}>
+                            {formatPort(p)} ({scopeLabel(p)})
+                          </option>
+                        ) : null,
+                      )}
+                    </Select>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted">
+                    Port:{" "}
+                    {published[0]
+                      ? `${formatPort(published[0])} (${scopeLabel(published[0])})`
+                      : "none"}
+                  </p>
+                )}
+
+                <p className="text-xs text-muted">
+                  Generated URL (a suggestion — edit the host/base to your real LAN address):{" "}
+                  {generatedUrl ? (
+                    <code className="text-foreground/80">{generatedUrl}</code>
+                  ) : (
+                    <span className="text-amber-600 dark:text-amber-400">enter a host/base above</span>
+                  )}
+                </p>
+
+                {hostIssue === "empty" ? (
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                    Enter your NAS/server LAN hostname or IP — the generated URL needs a real address.
+                  </p>
+                ) : hostIssue === "loopback" ? (
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                    This host points at the dashboard itself — generated URLs may not work from other
+                    devices. Use your NAS/server LAN hostname or IP.
+                  </p>
+                ) : null}
+                {portLoopback ? (
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                    This port is published to <code>127.0.0.1</code> — the service may only be
+                    reachable from the Docker host itself.
+                  </p>
+                ) : null}
+              </div>
+            ) : (
+              <div>
+                <Input
+                  value={values.customUrl}
+                  onChange={(e) => onChange("customUrl", e.target.value)}
+                  placeholder="https://plex.example.com"
+                />
+                <p className="mt-1 text-xs text-muted">
+                  Full URL, e.g. a reverse-proxy address. This is the App URL as-is.
+                </p>
+              </div>
+            )}
             <FieldError messages={errors?.url} />
           </div>
 
+          {/* --- Health URL --- */}
           <div>
-            <label className="text-sm font-medium" htmlFor={fieldId("health-url")}>
-              Health URL (optional)
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={values.healthSameAsApp}
+                onChange={(e) => onChange("healthSameAsApp", e.target.checked)}
+              />
+              Health URL same as App URL
             </label>
-            <Input
-              id={fieldId("health-url")}
-              value={row.values.healthUrl}
-              onChange={(e) => onChange("healthUrl", e.target.value)}
-              placeholder="Defaults to the URL above"
-            />
-            <FieldError messages={errors?.healthUrl} />
+            {!values.healthSameAsApp ? (
+              <div className="mt-2">
+                <Input
+                  value={values.healthUrl}
+                  onChange={(e) => onChange("healthUrl", e.target.value)}
+                  placeholder="https://app.example.com/health"
+                />
+                <FieldError messages={errors?.healthUrl} />
+              </div>
+            ) : null}
           </div>
 
           <div className="flex flex-wrap gap-4 pt-1">
             <label className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
-                checked={row.values.isFavourite}
+                checked={values.isFavourite}
                 onChange={(e) => onChange("isFavourite", e.target.checked)}
               />
               Favourite
@@ -168,7 +304,7 @@ export function CandidateCard({
             <label className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
-                checked={row.values.healthEnabled}
+                checked={values.healthEnabled}
                 onChange={(e) => onChange("healthEnabled", e.target.checked)}
               />
               Health checks
@@ -180,7 +316,7 @@ export function CandidateCard({
               <input
                 type="checkbox"
                 className="mt-0.5"
-                checked={row.values.healthInsecureTls}
+                checked={values.healthInsecureTls}
                 onChange={(e) => onChange("healthInsecureTls", e.target.checked)}
               />
               <span>

@@ -25,6 +25,20 @@ All notable changes to Bally's Dashboard are documented here.
   by URL or name are flagged and **skipped** rather than silently duplicated
   (against existing apps and within the same batch).
 
+### Changed
+- **Smarter URL suggestions** — the importer no longer defaults URLs to
+  `localhost`. The App URL is built from clear parts: **scheme** (https for host
+  port 443, else http), an editable **Docker host / base address** defaulted from
+  the hostname you opened the dashboard with, and a **published port** you pick
+  when several exist — or a **Custom URL** for reverse-proxy addresses. `0.0.0.0`
+  and `::` are treated as "published on the Docker host"; a `127.0.0.1`-only
+  binding, or a loopback dashboard hostname, raises a clear warning. The Health
+  URL defaults to the App URL. A non-sensitive port `hostScope` (all / loopback /
+  specific) is now surfaced (the raw host IP is still never exposed).
+- **Import from setup** — the setup wizard's apps step now offers **Import from
+  Docker** (reusing the same flow, embedded), alongside manual setup and skip;
+  shows a helpful message when Docker access isn't enabled.
+
 ### Notes
 - **No DB schema change.** Duplicate detection is by name/URL only; the source
   container id is not persisted on the app. No destructive/bulk operations were

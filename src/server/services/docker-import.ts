@@ -4,7 +4,6 @@ import type {
   DockerImportCandidatesResponseDTO,
   DockerImportOutcomeDTO,
   DockerImportResultDTO,
-  DockerPortDTO,
 } from "@/lib/types";
 import type { DockerImportInput, DockerImportItemInput } from "@/lib/validation";
 import { getDockerContainers } from "./docker";
@@ -44,32 +43,11 @@ export function suggestAppName(container: DockerContainerDTO): string {
   return prettifyName(container.composeService || container.name);
 }
 
-/**
- * Suggest a URL from the published ports, or null when none is published. Prefers
- * well-known web ports; uses `localhost` as a placeholder host the user edits.
- * This is explicitly a guess — never assumed correct (see docs/DOCKER.md).
- */
-export function suggestUrlFromPorts(ports: DockerPortDTO[]): string | null {
-  const published = ports.filter(
-    (p): p is DockerPortDTO & { publicPort: number } => p.publicPort != null,
-  );
-  if (published.length === 0) return null;
-
-  const priority = (pub: number): number => {
-    if (pub === 443) return 0;
-    if (pub === 80) return 1;
-    if (pub === 8080 || pub === 8443) return 2;
-    return 3;
-  };
-  const best = [...published].sort(
-    (a, b) => priority(a.publicPort) - priority(b.publicPort) || a.publicPort - b.publicPort,
-  )[0]!;
-
-  const pub = best.publicPort;
-  if (pub === 443) return "https://localhost";
-  if (pub === 8443) return `https://localhost:${pub}`;
-  return `http://localhost:${pub}`;
-}
+// NOTE: the suggested URL is built CLIENT-SIDE (see components/docker/import),
+// because it needs the dashboard's own hostname (what the user typed in their
+// browser) as the default Docker host/base address. The server deliberately does
+// not bake in a host like `localhost`, which would point at the dashboard
+// container itself rather than the Docker host.
 
 // Image/name fragments that usually indicate a backing service rather than
 // something a user opens in a browser. Matched as substrings (case-insensitive).
@@ -155,15 +133,17 @@ export function findDuplicate(
   return null;
 }
 
-/** Map one container DTO to an import candidate (pure). */
+/** Map one container DTO to an import candidate (pure). The candidate-time
+ * duplicate hint is by NAME only — the final URL is decided client-side (with
+ * the user's Docker host/base), so a URL-based hint isn't meaningful here. The
+ * import endpoint still re-checks duplicates by URL *and* name authoritatively. */
 export function buildCandidate(
   container: DockerContainerDTO,
   index: ExistingAppIndex,
 ): DockerImportCandidateDTO {
   const suggestedName = suggestAppName(container);
-  const suggestedUrl = suggestUrlFromPorts(container.ports);
   const internal = internalHint(container);
-  const duplicateReason = findDuplicate(suggestedName, suggestedUrl, index);
+  const duplicateReason = findDuplicate(suggestedName, null, index);
 
   return {
     containerId: container.id,
@@ -176,7 +156,6 @@ export function buildCandidate(
     composeProject: container.composeProject,
     composeService: container.composeService,
     suggestedName,
-    suggestedUrl,
     likelyInternal: internal.likelyInternal,
     internalReason: internal.reason,
     alreadyImported: duplicateReason !== null,

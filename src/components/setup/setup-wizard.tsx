@@ -11,6 +11,8 @@ import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
+import { DockerImport } from "@/components/docker/import/docker-import";
+import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/theme/theme-provider";
 import { completeSetup, fetchSetupStatus, seedTemplate } from "@/hooks/setup-api";
 import {
@@ -49,6 +51,7 @@ export function SetupWizard() {
 
   const [template, setTemplate] = useState<string>("homelab");
   const [seedResult, setSeedResult] = useState<SetupSeedResultDTO | null>(null);
+  const [showDockerImport, setShowDockerImport] = useState(false);
 
   const [auth, setAuth] = useState<SetupAuthValues>(EMPTY_SETUP_AUTH);
   const [authErrors, setAuthErrors] = useState<SetupAuthErrors>({});
@@ -153,7 +156,7 @@ export function SetupWizard() {
   };
 
   return (
-    <Card className="mx-auto max-w-lg">
+    <Card className={cn("mx-auto", step === 2 && showDockerImport ? "max-w-3xl" : "max-w-lg")}>
       <CardHeader>
         <CardTitle>Set up Bally&apos;s Dashboard</CardTitle>
         <span className="text-xs text-muted">Step {step} of 4</span>
@@ -281,7 +284,33 @@ export function SetupWizard() {
               <p className="text-sm text-emerald-600 dark:text-emerald-400">{formatSeedResult(seedResult)}</p>
             ) : null}
             {formError ? <p className="text-sm text-rose-600 dark:text-rose-400">{formError}</p> : null}
-            <p className="text-xs text-muted">You can add apps from the Apps page after setup.</p>
+
+            {/* Optional: discover & import apps from Docker. Reuses the same
+                import flow as the Apps page; nothing is imported automatically. */}
+            <div className="space-y-2 rounded-md border border-foreground/15 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm font-medium">Import from Docker (optional)</p>
+                  <p className="text-xs text-muted">
+                    Detect your running containers and turn the ones you choose into apps. Needs
+                    Docker access enabled (see <code>docs/DOCKER.md</code>).
+                  </p>
+                </div>
+                <Button variant="outline" onClick={() => setShowDockerImport((v) => !v)}>
+                  {showDockerImport ? "Hide" : "Import from Docker"}
+                </Button>
+              </div>
+              {showDockerImport ? (
+                <div className="border-t border-foreground/10 pt-3">
+                  <DockerImport embedded />
+                </div>
+              ) : null}
+            </div>
+
+            <p className="text-xs text-muted">
+              You can also add apps manually, or do all of this later from the Apps page — none of
+              this is required to finish setup.
+            </p>
             <div className="flex justify-between">
               <Button variant="outline" onClick={() => setStep(1)}>
                 Back

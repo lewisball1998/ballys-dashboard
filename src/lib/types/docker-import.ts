@@ -31,12 +31,6 @@ export interface DockerImportCandidateDTO {
   /** Suggested launcher app name (user-editable — just a suggestion). */
   suggestedName: string;
   /**
-   * Suggested URL derived from a published port, or null when no clear port
-   * exists. A best-effort guess (uses `localhost`); the user is expected to edit
-   * it, e.g. to a reverse-proxy URL like https://plex.example.com.
-   */
-  suggestedUrl: string | null;
-  /**
    * Heuristic: the container looks like a database / sidecar / infrastructure
    * service (by image or name). Never hides the candidate — it is only a hint.
    */

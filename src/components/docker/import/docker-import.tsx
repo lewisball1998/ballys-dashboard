@@ -12,32 +12,47 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { useDockerImport } from "@/hooks/use-docker-import";
 import { importApps } from "@/hooks/docker-import-api";
 import { unavailableCopy } from "@/components/docker/docker-logic";
-import type { AppFieldErrors, AppFormValues } from "@/components/launcher/launcher-logic";
 import { CandidateCard } from "./candidate-card";
 import {
+  appUrl,
   buildRows,
   selectedIds,
   validateRow,
+  type ImportFieldErrors,
   type ImportRow,
+  type ImportRowValues,
 } from "./import-logic";
 
 type Phase = "select" | "confirm" | "result";
 
-export function DockerImport() {
+interface DockerImportProps {
+  /** When embedded (e.g. in the setup wizard) the "go to Apps" navigation links
+   * are hidden so the user stays in the surrounding flow. */
+  embedded?: boolean;
+}
+
+/** The dashboard's own hostname is the best default for the Docker host/base —
+ * it's whatever the user typed to reach the dashboard (their NAS/server). */
+function defaultHostBase(): string {
+  if (typeof window === "undefined") return "";
+  return window.location.hostname;
+}
+
+export function DockerImport({ embedded = false }: DockerImportProps) {
   const { data, categories, loading, error, refresh } = useDockerImport();
 
   const [rows, setRows] = useState<Record<string, ImportRow>>({});
   const [phase, setPhase] = useState<Phase>("select");
-  const [rowErrors, setRowErrors] = useState<Record<string, AppFieldErrors>>({});
+  const [rowErrors, setRowErrors] = useState<Record<string, ImportFieldErrors>>({});
   const [submitting, setSubmitting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [result, setResult] = useState<DockerImportResultDTO | null>(null);
 
   // (Re)seed editable rows whenever the candidate list loads/refreshes. Nothing
-  // is selected by default.
+  // is selected by default; the host/base defaults to the dashboard hostname.
   useEffect(() => {
     if (data?.availability.available) {
-      setRows(buildRows(data.candidates));
+      setRows(buildRows(data.candidates, defaultHostBase()));
       setPhase("select");
       setRowErrors({});
       setResult(null);
@@ -55,31 +70,25 @@ export function DockerImport() {
   const setSelected = (id: string, selected: boolean) =>
     setRows((prev) => ({ ...prev, [id]: { ...prev[id]!, selected } }));
 
-  const setField = <K extends keyof AppFormValues>(id: string, key: K, value: AppFormValues[K]) =>
+  const setField = <K extends keyof ImportRowValues>(id: string, key: K, value: ImportRowValues[K]) =>
     setRows((prev) => ({
       ...prev,
       [id]: { ...prev[id]!, values: { ...prev[id]!.values, [key]: value } },
     }));
 
-  const selectAll = () =>
+  const setAllSelected = (selected: boolean) =>
     setRows((prev) => {
       const next: Record<string, ImportRow> = {};
-      for (const [id, row] of Object.entries(prev)) next[id] = { ...row, selected: true };
-      return next;
-    });
-
-  const clearAll = () =>
-    setRows((prev) => {
-      const next: Record<string, ImportRow> = {};
-      for (const [id, row] of Object.entries(prev)) next[id] = { ...row, selected: false };
+      for (const [id, row] of Object.entries(prev)) next[id] = { ...row, selected };
       return next;
     });
 
   const goToConfirm = () => {
-    // Validate every selected row first; surface inline errors and stay put.
-    const errors: Record<string, AppFieldErrors> = {};
+    const errors: Record<string, ImportFieldErrors> = {};
     for (const id of chosenIds) {
-      const res = validateRow(id, rows[id]!.values);
+      const candidate = candidatesById.get(id);
+      if (!candidate) continue;
+      const res = validateRow(candidate, rows[id]!.values);
       if (!res.success) errors[id] = res.fieldErrors;
     }
     setRowErrors(errors);
@@ -87,11 +96,11 @@ export function DockerImport() {
   };
 
   const doImport = async () => {
-    // Rows were validated on the way into the confirm phase; re-derive the
-    // payload items, dropping any that no longer validate.
     const payloadItems = chosenIds
       .map((id) => {
-        const res = validateRow(id, rows[id]!.values);
+        const candidate = candidatesById.get(id);
+        if (!candidate) return null;
+        const res = validateRow(candidate, rows[id]!.values);
         return res.success ? res.item : null;
       })
       .filter((x): x is NonNullable<typeof x> => x !== null);
@@ -124,16 +133,22 @@ export function DockerImport() {
           {data.availability.message ? (
             <p className="max-w-prose text-xs text-muted/80">Details: {data.availability.message}</p>
           ) : null}
+          <p className="max-w-prose text-xs text-muted/80">
+            Importing from Docker needs Docker access enabled — see <code>docs/DOCKER.md</code> for
+            the (opt-in, privileged) setup. You can still add apps manually.
+          </p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={refresh}>
             Retry
           </Button>
-          <Link href="/apps">
-            <Button variant="ghost" size="sm">
-              Back to Apps
-            </Button>
-          </Link>
+          {!embedded ? (
+            <Link href="/apps">
+              <Button variant="ghost" size="sm">
+                Back to Apps
+              </Button>
+            </Link>
+          ) : null}
         </div>
       </Card>
     );
@@ -179,9 +194,11 @@ export function DockerImport() {
           </ul>
         </Card>
         <div className="flex gap-2">
-          <Link href="/apps">
-            <Button size="sm">Go to Apps</Button>
-          </Link>
+          {!embedded ? (
+            <Link href="/apps">
+              <Button size="sm">Go to Apps</Button>
+            </Link>
+          ) : null}
           <Button variant="outline" size="sm" onClick={refresh}>
             Import more
           </Button>
@@ -202,17 +219,19 @@ export function DockerImport() {
         <Card>
           <ul className="divide-y divide-border text-sm">
             {chosenIds.map((id) => {
+              const candidate = candidatesById.get(id);
               const v = rows[id]!.values;
+              const url = candidate ? appUrl(candidate, v) : "";
               return (
                 <li key={id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                   <div className="min-w-0">
                     <p className="truncate font-medium">{v.name}</p>
-                    <p className="truncate text-xs text-muted">{v.url}</p>
+                    <p className="truncate text-xs text-muted">{url}</p>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {v.isFavourite ? <Badge tone="info" dot={false}>Favourite</Badge> : null}
                     {v.healthEnabled ? <Badge tone="neutral" dot={false}>Health</Badge> : null}
-                    {candidatesById.get(id)?.alreadyImported ? (
+                    {candidate?.alreadyImported ? (
                       <Badge tone="warning" dot={false}>May duplicate</Badge>
                     ) : null}
                   </div>
@@ -247,10 +266,15 @@ export function DockerImport() {
           <Button variant="ghost" size="sm" onClick={refresh}>
             Refresh
           </Button>
-          <Button variant="outline" size="sm" onClick={selectAll}>
+          <Button variant="outline" size="sm" onClick={() => setAllSelected(true)}>
             Select all
           </Button>
-          <Button variant="outline" size="sm" onClick={clearAll} disabled={chosenIds.length === 0}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setAllSelected(false)}
+            disabled={chosenIds.length === 0}
+          >
             Clear
           </Button>
           <Button size="sm" onClick={goToConfirm} disabled={chosenIds.length === 0}>

@@ -8,7 +8,6 @@ import {
   normalizeUrlForCompare,
   prettifyName,
   suggestAppName,
-  suggestUrlFromPorts,
 } from "@/server/services/docker-import";
 import { dockerImportSchema } from "@/lib/validation";
 
@@ -42,28 +41,6 @@ describe("docker-import — suggestions", () => {
     expect(suggestAppName(container({ name: "standalone-thing" }))).toBe("Standalone Thing");
   });
 
-  it("suggests a URL from published ports, preferring web ports", () => {
-    expect(suggestUrlFromPorts([{ privatePort: 9000, publicPort: 32000, type: "tcp" }])).toBe(
-      "http://localhost:32000",
-    );
-    // 80 wins over a random high port
-    expect(
-      suggestUrlFromPorts([
-        { privatePort: 9000, publicPort: 32000, type: "tcp" },
-        { privatePort: 80, publicPort: 80, type: "tcp" },
-      ]),
-    ).toBe("http://localhost:80");
-    // 443 → https with the default port omitted
-    expect(suggestUrlFromPorts([{ privatePort: 443, publicPort: 443, type: "tcp" }])).toBe(
-      "https://localhost",
-    );
-  });
-
-  it("returns null when no port is published", () => {
-    expect(suggestUrlFromPorts([])).toBeNull();
-    expect(suggestUrlFromPorts([{ privatePort: 80, publicPort: null, type: "tcp" }])).toBeNull();
-  });
-
   it("flags likely-internal services by image and by name, but never hides them", () => {
     expect(internalHint(container({ image: "postgres:16" })).likelyInternal).toBe(true);
     expect(internalHint(container({ image: "redis:7-alpine" })).likelyInternal).toBe(true);
@@ -89,24 +66,32 @@ describe("docker-import — duplicate detection", () => {
 });
 
 describe("docker-import — candidate mapping", () => {
-  it("maps a container into a candidate with suggestions + duplicate hint", () => {
-    const index = indexExistingApps([{ name: "Existing", url: "http://localhost:8080" }]);
+  it("maps a container into a candidate with suggestions + name-based duplicate hint", () => {
+    // The candidate-time hint is NAME-based (the final URL is chosen client-side).
+    const index = indexExistingApps([{ name: "Whoami", url: "https://unrelated.example.com" }]);
     const c = buildCandidate(
       container({
         name: "whoami",
         image: "traefik/whoami",
-        ports: [{ privatePort: 80, publicPort: 8080, type: "tcp" }],
+        ports: [{ privatePort: 80, publicPort: 8080, type: "tcp", hostScope: "all" }],
         composeProject: "web",
         composeService: "whoami",
       }),
       index,
     );
     expect(c.suggestedName).toBe("Whoami");
-    expect(c.suggestedUrl).toBe("http://localhost:8080");
-    expect(c.alreadyImported).toBe(true); // URL collides with the existing app
+    // suggestedUrl no longer exists — URL building moved client-side
+    expect((c as unknown as Record<string, unknown>).suggestedUrl).toBeUndefined();
+    expect(c.alreadyImported).toBe(true); // name collides with the existing app
     expect(c.containerName).toBe("whoami");
     // never leaks host internals
     expect(JSON.stringify(c)).not.toMatch(/socket|mount|\/var\/run/i);
+  });
+
+  it("does not flag a unique container as already imported", () => {
+    const index = indexExistingApps([{ name: "Other", url: "https://other.example.com" }]);
+    const c = buildCandidate(container({ name: "fresh-app" }), index);
+    expect(c.alreadyImported).toBe(false);
   });
 });
 
