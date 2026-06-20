@@ -11,13 +11,13 @@ export function EmptyState({ title, description, className, children }: EmptySta
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-foreground/15 p-8 text-center",
+        "flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-surface-2/30 px-6 py-8 text-center",
         className,
       )}
     >
-      <p className="text-sm font-medium">{title}</p>
-      {description ? <p className="max-w-sm text-sm text-foreground/60">{description}</p> : null}
-      {children}
+      <p className="text-sm font-medium text-foreground">{title}</p>
+      {description ? <p className="max-w-sm text-sm text-muted">{description}</p> : null}
+      {children ? <div className="mt-1">{children}</div> : null}
     </div>
   );
 }

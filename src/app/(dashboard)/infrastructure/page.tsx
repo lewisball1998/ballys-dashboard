@@ -1,13 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SystemOverviewWidget } from "@/components/dashboard/widgets/system-overview-widget";
+import { PageHeader } from "@/components/layout/page-header";
 
 export default function InfrastructurePage() {
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-xl font-semibold">Infrastructure</h1>
-        <p className="text-sm text-foreground/60">Local system metrics (container-visible).</p>
-      </header>
+      <PageHeader title="Infrastructure" description="Local system metrics (container-visible)." />
       <Card>
         <CardHeader>
           <CardTitle>System metrics</CardTitle>

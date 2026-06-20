@@ -52,8 +52,8 @@ export function Launcher() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Apps</h1>
-          <p className="text-sm text-foreground/60">Your application launcher.</p>
+          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Apps</h1>
+          <p className="text-sm text-muted">Your application launcher.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Select
@@ -99,7 +99,7 @@ export function Launcher() {
                 {group.category?.name ?? "Uncategorised"}
               </h2>
               {group.apps.length === 0 ? (
-                <p className="text-sm text-foreground/50">No apps in this category.</p>
+                <p className="text-sm text-muted">No apps in this category.</p>
               ) : (
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {group.apps.map((app, i) => (

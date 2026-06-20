@@ -33,6 +33,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 
+# local agent/editor state (not part of the project)
+.claude/
+
 # stray in-memory sqlite artifacts (safety net)
 :memory:
 :memory:-*

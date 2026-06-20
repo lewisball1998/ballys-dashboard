@@ -8,7 +8,7 @@ interface LoadingStateProps {
 export function LoadingState({ label = "Loading…", className }: LoadingStateProps) {
   return (
     <div
-      className={cn("flex items-center justify-center gap-2 p-6 text-sm text-foreground/60", className)}
+      className={cn("flex items-center justify-center gap-2 p-6 text-sm text-muted", className)}
       role="status"
       aria-live="polite"
     >

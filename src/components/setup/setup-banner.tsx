@@ -32,7 +32,7 @@ export function SetupBanner() {
         <button
           type="button"
           onClick={() => setDismissed(true)}
-          className="text-foreground/50 hover:text-foreground"
+          className="text-muted hover:text-foreground"
           aria-label="Dismiss"
         >
           ✕

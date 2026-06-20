@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { AppDTO } from "@/lib/types";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -38,31 +39,34 @@ export function AppCard({ app, isFirst, isLast, onEdit, onMove, onMutate }: AppC
   const status = app.latestHealth?.status;
 
   return (
-    <Card className="flex flex-col gap-3">
+    <Card className="flex h-full flex-col gap-3 transition-colors hover:border-foreground/20">
       <div className="flex items-start gap-3">
         {app.icon ? (
           // eslint-disable-next-line @next/next/no-img-element -- arbitrary user icon URL; next/image would require remote config
-          <img src={app.icon} alt="" className="h-9 w-9 rounded-md object-cover" />
+          <img src={app.icon} alt="" className="h-9 w-9 shrink-0 rounded-md object-cover" />
         ) : (
-          <span className="flex h-9 w-9 items-center justify-center rounded-md bg-foreground/10 text-sm font-semibold">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-foreground/10 text-sm font-semibold text-foreground/80">
             {app.name.charAt(0).toUpperCase()}
           </span>
         )}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <p className="truncate text-sm font-semibold">{app.name}</p>
+            <p className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">{app.name}</p>
             <button
               type="button"
               aria-label={app.isFavourite ? "Unfavourite" : "Favourite"}
               disabled={busy}
               onClick={() => run(() => setFavourite(app.id, !app.isFavourite))}
-              className={app.isFavourite ? "text-accent" : "text-foreground/30 hover:text-foreground/60"}
+              className={cn(
+                "shrink-0 text-base leading-none transition-colors",
+                app.isFavourite ? "text-accent" : "text-foreground/30 hover:text-muted",
+              )}
             >
               {app.isFavourite ? "★" : "☆"}
             </button>
           </div>
           {app.description ? (
-            <p className="truncate text-xs text-foreground/60">{app.description}</p>
+            <p className="mt-0.5 truncate text-xs text-muted">{app.description}</p>
           ) : null}
         </div>
       </div>
@@ -71,21 +75,31 @@ export function AppCard({ app, isFirst, isLast, onEdit, onMove, onMutate }: AppC
         {app.healthEnabled ? (
           <Badge tone={healthTone(status)}>{healthLabel(status)}</Badge>
         ) : (
-          <Badge tone="neutral">Health off</Badge>
+          <Badge tone="neutral" dot={false}>
+            Health off
+          </Badge>
         )}
-        {app.isHidden ? <Badge tone="neutral">Hidden</Badge> : null}
-        {app.lifecycle === "retired" ? <Badge tone="warning">Retired</Badge> : null}
+        {app.isHidden ? (
+          <Badge tone="neutral" dot={false}>
+            Hidden
+          </Badge>
+        ) : null}
+        {app.lifecycle === "retired" ? (
+          <Badge tone="warning" dot={false}>
+            Retired
+          </Badge>
+        ) : null}
         {app.latestHealth?.latencyMs != null ? (
-          <span className="text-xs text-foreground/50">{app.latestHealth.latencyMs} ms</span>
+          <span className="ml-auto text-xs tabular-nums text-muted">{app.latestHealth.latencyMs} ms</span>
         ) : null}
       </div>
 
-      <div className="flex flex-wrap items-center gap-1.5">
+      <div className="mt-auto flex flex-wrap items-center gap-1.5 border-t border-border pt-3">
         <a
           href={app.url}
           target={app.openNewTab ? "_blank" : undefined}
           rel="noreferrer"
-          className="rounded-md bg-accent px-3 py-1 text-xs font-medium text-accent-foreground hover:opacity-90"
+          className="inline-flex h-8 items-center rounded-md bg-accent px-3 text-sm font-medium text-accent-foreground shadow-sm shadow-accent/20 transition-colors hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
         >
           Open
         </a>
