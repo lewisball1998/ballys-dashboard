@@ -44,7 +44,7 @@ export function NotificationItem({ notification, onChanged }: NotificationItemPr
         {notification.message ? (
           <p className="mt-1 text-sm text-foreground/70">{notification.message}</p>
         ) : null}
-        <p className="mt-1 text-xs text-foreground/50">
+        <p className="mt-1 text-xs text-muted">
           {notification.source ? `${notification.source} · ` : ""}
           {formatRelativeTime(notification.createdAt)}
         </p>

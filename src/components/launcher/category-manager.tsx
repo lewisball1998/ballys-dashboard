@@ -122,7 +122,7 @@ export function CategoryManager({ categories, onChanged }: CategoryManagerProps)
           </Button>
         </div>
         {ordered.length === 0 ? (
-          <p className="text-sm text-foreground/60">No categories yet.</p>
+          <p className="text-sm text-muted">No categories yet.</p>
         ) : (
           <div className="space-y-2">
             {ordered.map((c, i) => (

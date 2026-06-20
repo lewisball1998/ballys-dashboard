@@ -37,8 +37,8 @@ export function NotificationCenter() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Notifications</h1>
-          <p className="text-sm text-foreground/60">Alerts and events ({total}).</p>
+          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Notifications</h1>
+          <p className="text-sm text-muted">Alerts and events ({total}).</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => runBulk(markAllRead)}>

@@ -10,9 +10,9 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantClasses: Record<Variant, string> = {
-  primary: "bg-accent text-accent-foreground hover:opacity-90",
-  outline: "border border-foreground/15 hover:bg-foreground/5",
-  ghost: "hover:bg-foreground/5",
+  primary: "bg-accent text-accent-foreground shadow-sm shadow-accent/20 hover:opacity-90",
+  outline: "border border-border bg-surface text-foreground/90 hover:bg-foreground/[0.04] hover:text-foreground",
+  ghost: "text-foreground/75 hover:bg-foreground/[0.06] hover:text-foreground",
 };
 
 const sizeClasses: Record<Size, string> = {
@@ -24,7 +24,9 @@ export function Button({ variant = "primary", size = "md", className, ...props }
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-md font-medium transition disabled:pointer-events-none disabled:opacity-50",
+        "inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50",
+        "disabled:pointer-events-none disabled:opacity-50",
         variantClasses[variant],
         sizeClasses[size],
         className,

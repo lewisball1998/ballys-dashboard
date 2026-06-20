@@ -42,7 +42,7 @@ export function NotificationsWidget() {
         <div key={n.id} className="flex items-center gap-2 text-sm">
           <Badge tone={severityTone(n.severity)}>{n.severity}</Badge>
           <span className="min-w-0 flex-1 truncate">{n.title}</span>
-          <span className="shrink-0 text-xs text-foreground/50">{formatRelativeTime(n.createdAt)}</span>
+          <span className="shrink-0 text-xs text-muted">{formatRelativeTime(n.createdAt)}</span>
         </div>
       ))}
       <Link href="/notifications" className="inline-block text-xs text-accent hover:underline">

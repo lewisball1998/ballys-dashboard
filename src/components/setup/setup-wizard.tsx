@@ -156,12 +156,12 @@ export function SetupWizard() {
     <Card className="mx-auto max-w-lg">
       <CardHeader>
         <CardTitle>Set up Bally&apos;s Dashboard</CardTitle>
-        <span className="text-xs text-foreground/50">Step {step} of 4</span>
+        <span className="text-xs text-muted">Step {step} of 4</span>
       </CardHeader>
       <CardContent className="space-y-4">
         {step === 1 ? (
           <div className="space-y-3">
-            <p className="text-sm text-foreground/60">Choose how your dashboard looks.</p>
+            <p className="text-sm text-muted">Choose how your dashboard looks.</p>
             <div>
               <label className="text-sm font-medium" htmlFor="s-name">
                 Dashboard name
@@ -245,7 +245,7 @@ export function SetupWizard() {
 
         {step === 2 ? (
           <div className="space-y-3">
-            <p className="text-sm text-foreground/60">
+            <p className="text-sm text-muted">
               Pick a starter template to create categories, or skip and add your own later.
             </p>
             <div className="space-y-2">
@@ -263,7 +263,7 @@ export function SetupWizard() {
                   />
                   <span>
                     <span className="text-sm font-medium">{t.name}</span>
-                    <span className="block text-xs text-foreground/60">{t.description}</span>
+                    <span className="block text-xs text-muted">{t.description}</span>
                     {t.categories.length > 0 ? (
                       <span className="mt-1 flex flex-wrap gap-1">
                         {t.categories.map((c) => (
@@ -281,7 +281,7 @@ export function SetupWizard() {
               <p className="text-sm text-emerald-600 dark:text-emerald-400">{formatSeedResult(seedResult)}</p>
             ) : null}
             {formError ? <p className="text-sm text-rose-600 dark:text-rose-400">{formError}</p> : null}
-            <p className="text-xs text-foreground/50">You can add apps from the Apps page after setup.</p>
+            <p className="text-xs text-muted">You can add apps from the Apps page after setup.</p>
             <div className="flex justify-between">
               <Button variant="outline" onClick={() => setStep(1)}>
                 Back
@@ -298,7 +298,7 @@ export function SetupWizard() {
 
         {step === 3 ? (
           <div className="space-y-3">
-            <p className="text-sm text-foreground/60">Secure your dashboard.</p>
+            <p className="text-sm text-muted">Secure your dashboard.</p>
             <div className="space-y-2">
               <label className="flex cursor-pointer items-start gap-2 rounded-md border border-foreground/15 p-3">
                 <input
@@ -310,7 +310,7 @@ export function SetupWizard() {
                 />
                 <span>
                   <span className="text-sm font-medium">Create an admin login</span>
-                  <span className="block text-xs text-foreground/60">
+                  <span className="block text-xs text-muted">
                     Require a username and password to access the dashboard.
                   </span>
                 </span>
@@ -379,19 +379,19 @@ export function SetupWizard() {
 
         {step === 4 ? (
           <div className="space-y-3">
-            <p className="text-sm text-foreground/60">Review and finish.</p>
+            <p className="text-sm text-muted">Review and finish.</p>
             <ul className="space-y-1 text-sm">
               <li>
-                <span className="text-foreground/60">Name:</span> {values.dashboardName}
+                <span className="text-muted">Name:</span> {values.dashboardName}
               </li>
               <li>
-                <span className="text-foreground/60">Theme:</span> {values.theme} · {values.accent}
+                <span className="text-muted">Theme:</span> {values.theme} · {values.accent}
               </li>
               <li>
-                <span className="text-foreground/60">Timezone:</span> {values.timezone}
+                <span className="text-muted">Timezone:</span> {values.timezone}
               </li>
               <li>
-                <span className="text-foreground/60">Auth:</span>{" "}
+                <span className="text-muted">Auth:</span>{" "}
                 {auth.mode === "create" ? `enabled (admin: ${auth.username})` : "disabled (skipped)"}
               </li>
             </ul>

@@ -45,7 +45,7 @@ export function AppHealthSummaryWidget() {
         <Badge tone="error">Down {s.down}</Badge>
         <Badge tone="neutral">Unknown {s.unknown}</Badge>
       </div>
-      <p className="text-xs text-foreground/50">
+      <p className="text-xs text-muted">
         Monitoring {s.monitored} of {s.total} app{s.total === 1 ? "" : "s"}
       </p>
     </div>
