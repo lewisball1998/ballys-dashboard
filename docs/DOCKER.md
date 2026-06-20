@@ -45,6 +45,43 @@ All Docker logic runs **server-side only**. The browser only ever receives a
 safe subset of fields — never the socket path, host IP bindings, mounts /
 filesystem paths, environment variables, or full command lines.
 
+## Import apps from Docker (v0.2.1)
+
+The **Apps** page has an **Import from Docker** button that turns detected
+containers into launcher entries. It reuses the same read-only container data as
+the Command Centre — it adds **no** new Docker capability (no lifecycle, exec,
+image, volume, network, or stack operations); it only reads metadata and creates
+app rows.
+
+The flow is deliberately **selective** — nothing is imported automatically:
+
+1. Containers are listed as **import candidates** with read-only hints (name,
+   image, state, health, published ports, compose project/service).
+2. For each candidate the server suggests an **app name** and, when a port is
+   published, a **suggested URL**. Suggestions use `localhost` and are **just a
+   guess** — you are expected to edit them (e.g. to a reverse-proxy URL like
+   `https://plex.example.com`). When no clear port exists the URL is left blank
+   and you must fill it in (a valid `http(s)` URL is required to import).
+3. Nothing is selected by default. Tick the containers you want (or **Select
+   all**), then edit each one's **name, URL, health URL, category, favourite,
+   health-checks, and trusted-internal TLS** before importing.
+4. A **review step** lists exactly what will be created; apps are only created
+   after you confirm.
+5. A **result summary** reports imported / skipped (duplicate) / failed counts.
+
+**Likely-internal hint.** Databases, caches, and other helper/infrastructure
+containers are flagged "Likely internal service" (by image or name) so you don't
+import them by accident — but they are **never hidden**; you can still select
+them.
+
+**Duplicate protection.** An app that matches an existing app by URL or name
+(case-insensitive) is flagged "Already in Apps" and is **skipped** at import
+rather than silently duplicated — both against existing apps and against other
+items in the same batch. (Duplicate detection is by name/URL only: v0.2.1 does
+not add a DB column to persist the source container id, so re-importing a
+container whose app you later renamed is not detected. Importing remains
+reversible only through normal app management — there is no bulk delete.)
+
 ## Enabling Docker access (Docker Compose)
 
 The socket is **not** mounted by default. To turn the feature on, mount it into

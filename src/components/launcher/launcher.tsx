@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { AppDTO } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -73,6 +74,11 @@ export function Launcher() {
           <Button variant="outline" size="sm" onClick={() => setShowCategories((v) => !v)}>
             {showCategories ? "Hide categories" : "Manage categories"}
           </Button>
+          <Link href="/apps/import">
+            <Button variant="outline" size="sm">
+              Import from Docker
+            </Button>
+          </Link>
           <Button size="sm" onClick={openCreate}>
             Add app
           </Button>
