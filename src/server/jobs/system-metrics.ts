@@ -39,6 +39,10 @@ function evaluateThresholds(points: MetricPoint[], thresholds: ThresholdSettings
   check(points, "storage", thresholds.storagePercent, "Storage", "system.threshold.storage");
 }
 
+// Tracks which thresholds are currently breached so we notify once on breach
+// and once on recovery (transition-based), not every tick.
+const activeBreaches = new Set<string>();
+
 function check(
   points: MetricPoint[],
   sourceId: string,
@@ -49,17 +53,31 @@ function check(
   const point = points.find((p) => p.sourceId === sourceId && p.metric === "usage_percent");
   if (!point) return;
 
+  const recoveredKey = `${dedupeKey}.recovered`;
+
   if (point.value > threshold) {
+    if (!activeBreaches.has(dedupeKey)) {
+      activeBreaches.add(dedupeKey);
+      events.resetDedupe(recoveredKey);
+      void events.emit({
+        type: dedupeKey,
+        severity: "warning",
+        title: `High ${label.toLowerCase()} usage`,
+        message: `${label} at ${point.value}% (threshold ${threshold}%)`,
+        source: "system",
+        dedupeKey,
+      });
+    }
+  } else if (activeBreaches.has(dedupeKey)) {
+    activeBreaches.delete(dedupeKey);
+    events.resetDedupe(dedupeKey);
     void events.emit({
-      type: dedupeKey,
-      severity: "warning",
-      title: `High ${label.toLowerCase()} usage`,
+      type: recoveredKey,
+      severity: "success",
+      title: `${label} back to normal`,
       message: `${label} at ${point.value}% (threshold ${threshold}%)`,
       source: "system",
-      dedupeKey,
+      dedupeKey: recoveredKey,
     });
-  } else {
-    // Back under threshold — clear the dedupe key so the next breach notifies.
-    events.resetDedupe(dedupeKey);
   }
 }
