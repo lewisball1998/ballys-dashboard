@@ -26,11 +26,17 @@ Architect-owned — changes here are versioned and broadcast.
 | GET | `/api/settings` | — | `AppSettingsDTO` | structured view of the kv store |
 | PATCH | `/api/settings` | `settingsUpdateSchema` | `AppSettingsDTO` | partial; excludes `setupCompleted` |
 
-### Setup (wizard)
+### Setup (wizard, Phase 4)
 | Method | Path | Request schema | Response data | Notes |
 |---|---|---|---|---|
-| GET | `/api/setup/status` | — | `{ setupCompleted: boolean }` | |
-| POST | `/api/setup/complete` | (settings subset, defined in Phase 1 wizard work) | `AppSettingsDTO` | sets `setupCompleted` |
+| GET | `/api/setup/status` | — | `SetupStatusDTO` | setupCompleted + current appearance + app/category counts + starter templates |
+| POST | `/api/setup/complete` | `setupCompleteSchema` (`{ settings? }`) | `SetupStatusDTO` | applies optional final settings then marks complete; idempotent; never destroys data |
+| POST | `/api/setup/seed` | `setupSeedSchema` (`{ template: "blank" \| "homelab" }`) | `SetupSeedResultDTO` | seeds generic starter categories; idempotent (skips existing by name); no starter apps in v0.1 |
+
+> `SetupStatusDTO` / `SetupSeedResultDTO` + `setupCompleteSchema` / `setupSeedSchema`
+> were added by Backend in Phase 4 (the contract previously listed these as a
+> placeholder); additive, pending Architect ratification. Starter templates are
+> categories-only and contain no hardcoded apps/domains/IPs.
 
 ### Categories
 | Method | Path | Request schema | Response data |
