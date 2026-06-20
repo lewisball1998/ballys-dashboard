@@ -12,3 +12,4 @@ export * from "./apps";
 export * from "./health";
 export * from "./widgets";
 export * from "./metrics";
+export * from "./notifications";
