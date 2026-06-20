@@ -6,18 +6,40 @@ services:
     image: ballys-dashboard:local
     container_name: ballys-dashboard
     restart: unless-stopped
+    # Proper PID 1 / signal handling for clean shutdowns.
+    init: true
     ports:
       - "3000:3000"
     environment:
       NODE_ENV: production
       PORT: "3000"
       DATABASE_PATH: /app/data/ballys.db
-      # Required once module secrets land in v0.2. Generate with:
+      # Recovery escape hatch: bypass auth if locked out (CSRF still enforced).
+      # AUTH_DISABLE: "1"
+      # Required once module secrets land in v0.2 (optional/unused in v0.1).
+      # Generate with:
       #   node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
       # APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY}
     volumes:
-      # Persists the SQLite database and uploaded icons across recreations.
+      # Single persistent volume: SQLite DB + uploaded icons. THIS is your backup
+      # target — preserve ./data to keep all settings, apps, sessions, and data.
       - ./data:/app/data
+    # --- Hardening -----------------------------------------------------------
+    # Runs non-root (see Dockerfile). Drop all Linux capabilities (the app needs
+    # none: non-privileged port, file writes to the data volume only) and block
+    # privilege escalation.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # Writable scratch space without a writable rootfs.
+    tmpfs:
+      - /tmp
+    # NOTE: a read_only root filesystem is intentionally NOT enabled. The Next.js
+    # standalone server may write to .next/cache at runtime; enabling read_only
+    # without the right tmpfs mounts can make the container brittle. Revisit with
+    # explicit cache tmpfs after verification.
+    #
     # --- v0.2 ONLY: Docker module container management -----------------------
     # The Docker socket is NOT mounted in v0.1. Mounting it grants root-equivalent
     # control of the host and is opt-in + documented as privileged (see
