@@ -2,6 +2,43 @@
 
 All notable changes to Bally's Dashboard are documented here.
 
+## 0.2.7 — Icon Alias Expansion & Generic Icon Set
+
+Much broader icon auto-suggestion for common self-hosted apps, built entirely on
+the v0.2.6 framework. Code + first-party assets only — no DB schema/migration,
+API contract, Docker/deployment, or auth changes. See
+`docs/adr/0014-icon-policy-and-pack-import.md`.
+
+### Added
+- **14 new first-party generic icon keys** (authored monochrome glyphs, rendered
+  with `currentColor`, no third-party brand logos): `ai`, `proxy`, `identity`,
+  `automation`, `camera`, `backup`, `notes`, `finance`, `rss`, `server`,
+  `indexer`, `calendar`, `search`, `requests` — growing the built-in registry
+  from 16 to 30 keys.
+- **Large alias expansion** across existing and new keys, covering common media,
+  downloader, indexer, reverse-proxy, DNS/VPN/security, identity/secrets,
+  container/admin, monitoring, dev/Git/CI, database, storage/cloud/backup,
+  notes/wiki, finance/RSS/search, AI/LLM, and home-automation/camera apps
+  (~550 aliases total, each unique to one key).
+- **4K / multi-instance handling** — `suggestIconKey` now strips standalone
+  qualifier tokens (`4k`, `uhd`, `hd`, `anime`, `kids`, `instance`, `alt`, `2`,
+  `3`, …) before matching, so `Sonarr 4K`, `Radarr Anime`, and `Sonarr 2` all
+  suggest `media`. Never strips to empty; the suggester stays pure and returns a
+  base key only (no `?v=4k`).
+
+### Changed
+- **Suggestion re-homing** so results match expectations: Uptime Kuma / Netdata /
+  generic "monitoring" now map to `monitor` (were `chart`); Overseerr / Jellyseerr
+  now map to the new `requests` key (were `media`).
+- **Short-name bleed guard** — the weakest match signal now requires a ≥ 3-char
+  residual, preventing short names from matching long aliases.
+
+### Notes
+- No DB migration, no apps-table change, no Docker/deployment/auth change, no
+  third-party assets, no SVG uploads. Existing URL/custom/built-in icon
+  references render unchanged. Icon-pack import (`pack:<id>/<key>`) remains
+  designed-only (ADR 0014), not implemented.
+
 ## 0.2.6 — App Icon Library & Custom Icons
 
 Apps can now use a proper icon — a first-party built-in glyph, an uploaded
