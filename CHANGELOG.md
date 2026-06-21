@@ -2,6 +2,15 @@
 
 All notable changes to Bally's Dashboard are documented here.
 
+## 0.2.5 — Dark Mode Select Readability Fix
+
+### Fixed
+- **Dark-mode Select dropdown** — the shared `Select` now sets `color-scheme` to
+  follow the active theme and themes its options, so the native dropdown/option
+  list is readable in dark mode (no more bright-white popup). CSS-only; affects
+  all selects (including the dashboard editor's "Add app widget" pickers). No
+  functional, API, schema, or Docker changes.
+
 ## 0.2.4 — Individual App Dashboard Widgets (unreleased)
 
 Pin a specific app as its own homepage dashboard widget. Built on the existing
