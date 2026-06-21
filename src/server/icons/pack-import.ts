@@ -1,28 +1,43 @@
+import { randomBytes } from "node:crypto";
 import { unzipSync } from "fflate";
-import { sniffImageType, extForType, mimeForType, MAX_ICON_BYTES } from "@/lib/icons/upload";
+import { sniffImageType, extForType, mimeForType } from "@/lib/icons/upload";
 import {
-  isSafeAssetPath,
+  isAcceptableImageEntry,
   parseManifest,
   MANIFEST_NAME,
   MAX_PACK_ZIP_BYTES,
+  MAX_PACK_ICON_BYTES,
   MAX_PACK_UNCOMPRESSED_BYTES,
   MAX_PACK_ENTRIES,
   MAX_MANIFEST_BYTES,
+  MAX_ICONS_PER_PACK,
   type IconPackManifest,
 } from "@/lib/icons/pack-manifest";
+import {
+  deriveIconKey,
+  derivePackId,
+  derivePackName,
+  humanizeLabel,
+} from "@/lib/icons/pack-derive";
 import { sha256Hex } from "@/server/icons/storage";
 
 /**
- * Server-side icon-pack import (v0.2.8). Takes an UNTRUSTED `.zip`, validates it
- * at the archive, manifest and asset-byte levels, and produces an in-memory,
- * ready-to-persist pack. Writes nothing — the service stages/commits.
+ * Server-side icon-pack import (v0.2.8, relaxed UX in v0.2.8.1). Takes an
+ * UNTRUSTED `.zip`, validates it at the archive, manifest and asset-byte levels,
+ * and produces an in-memory, ready-to-persist pack. Writes nothing — the service
+ * stages/commits.
+ *
+ * Two accepted layouts:
+ *  - **Strict manifest:** a root `manifest.json` (authoritative) + `assets/` PNG/WebP.
+ *  - **Flat / manifestless:** PNG/WebP files at the root and/or under `assets/`,
+ *    with NO manifest — a manifest is synthesised from the filenames.
  *
  * Defence layers, cheapest first:
  *  1. total zip-size cap (before any parsing);
  *  2. central-directory scan: entry count + reject symlinks/special files;
- *  3. fflate `filter`: path allowlist (manifest.json + assets/ only), per-entry
- *     and running DECLARED uncompressed caps (skips bad entries before inflate);
- *  4. manifest JSON parse + zod validation (slugs, unique keys, safe file paths);
+ *  3. fflate `filter`: allowlist (manifest.json + root/assets PNG/WebP only),
+ *     per-entry and running DECLARED uncompressed caps (skip before inflate);
+ *  4. manifest parse+validate (strict mode) or filename-derived synthesis (flat);
  *  5. per-asset ACTUAL-byte checks: magic-byte sniff (PNG/WebP only — SVG/GIF/
  *     JPEG/ICO/empty/malformed rejected), size cap, running total cap, sha256.
  */
@@ -112,8 +127,11 @@ function assertNoUnsafeZipEntries(b: Buffer): void {
   }
 }
 
-/** Validate + decode an untrusted `.zip` into a ready-to-persist pack. */
-export function preparePackFromZip(zipBytes: Buffer): PreparedPack {
+/**
+ * Validate + decode an untrusted `.zip` into a ready-to-persist pack. `zipName`
+ * (the uploaded filename) seeds the pack id/name for a manifestless flat zip.
+ */
+export function preparePackFromZip(zipBytes: Buffer, zipName?: string | null): PreparedPack {
   if (zipBytes.length === 0) throw new PackImportError("empty_file", "Uploaded file is empty");
   if (zipBytes.length > MAX_PACK_ZIP_BYTES) {
     throw new PackImportError(
@@ -124,8 +142,9 @@ export function preparePackFromZip(zipBytes: Buffer): PreparedPack {
 
   assertNoUnsafeZipEntries(zipBytes);
 
-  // Inflate, but skip directory entries, anything outside manifest.json/assets/,
-  // and anything whose DECLARED size blows a cap — those are never decompressed.
+  // Inflate, but skip directory entries, reject anything that is neither
+  // manifest.json nor a root/assets PNG/WebP, and reject anything whose DECLARED
+  // size blows a cap — those are never decompressed.
   let declaredTotal = 0;
   let rejection: PackImportError | null = null;
   let files: Record<string, Uint8Array>;
@@ -142,14 +161,17 @@ export function preparePackFromZip(zipBytes: Buffer): PreparedPack {
           }
           return true;
         }
-        if (!isSafeAssetPath(name)) {
-          rejection = new PackImportError("invalid_entry", `Disallowed archive entry: ${name}`);
+        if (!isAcceptableImageEntry(name)) {
+          rejection = new PackImportError(
+            "invalid_entry",
+            `Unsupported file in pack: "${name}". Only PNG/WebP icons (at the zip root or under assets/) and an optional manifest.json are allowed.`,
+          );
           return false;
         }
-        if (originalSize > MAX_ICON_BYTES) {
+        if (originalSize > MAX_PACK_ICON_BYTES) {
           rejection = new PackImportError(
             "asset_too_large",
-            `Asset exceeds the per-icon size limit: ${name}`,
+            `Icon "${name}" exceeds the ${Math.floor(MAX_PACK_ICON_BYTES / 1024 / 1024)} MB per-icon limit`,
           );
           return false;
         }
@@ -170,20 +192,7 @@ export function preparePackFromZip(zipBytes: Buffer): PreparedPack {
   }
   if (rejection) throw rejection;
 
-  const manifestRaw = files[MANIFEST_NAME];
-  if (!manifestRaw) throw new PackImportError("missing_manifest", "Archive has no manifest.json");
-
-  let json: unknown;
-  try {
-    json = JSON.parse(Buffer.from(manifestRaw).toString("utf8"));
-  } catch {
-    throw new PackImportError("malformed_manifest", "manifest.json is not valid JSON");
-  }
-  const parsed = parseManifest(json);
-  if (!parsed.ok) throw new PackImportError("invalid_manifest", parsed.error);
-  const manifest = parsed.manifest;
-
-  // Resolve every referenced file against ACTUAL bytes; sniff, cap, dedup.
+  // Shared ingest: resolve a path against ACTUAL bytes; sniff, cap, dedup.
   const assets = new Map<string, Buffer>();
   const icons: PreparedPackIcon[] = [];
   let actualTotal = 0;
@@ -195,16 +204,16 @@ export function preparePackFromZip(zipBytes: Buffer): PreparedPack {
     const buf = Buffer.from(data);
     if (buf.length === 0)
       throw new PackImportError("empty_asset", `Referenced file is empty: ${path}`);
-    if (buf.length > MAX_ICON_BYTES)
+    if (buf.length > MAX_PACK_ICON_BYTES)
       throw new PackImportError(
         "asset_too_large",
-        `Asset exceeds the per-icon size limit: ${path}`,
+        `Icon "${path}" exceeds the ${Math.floor(MAX_PACK_ICON_BYTES / 1024 / 1024)} MB per-icon limit`,
       );
     const type = sniffImageType(buf);
     if (!type)
       throw new PackImportError(
         "unsupported_type",
-        `Only PNG and WebP assets are allowed: ${path}`,
+        `Only PNG and WebP icons are supported (SVG is not): ${path}`,
       );
     actualTotal += buf.length;
     if (actualTotal > MAX_PACK_UNCOMPRESSED_BYTES) {
@@ -220,14 +229,81 @@ export function preparePackFromZip(zipBytes: Buffer): PreparedPack {
     return { sha256, ext, mime: mimeForType(type), bytes: buf.length };
   }
 
-  for (const icon of manifest.icons) {
-    const base = ingest(icon.file);
-    icons.push({ key: icon.key, label: icon.label ?? null, variant: null, ...base });
-    if (icon.variants) {
-      for (const [variant, file] of Object.entries(icon.variants)) {
-        const v = ingest(file);
-        icons.push({ key: icon.key, label: icon.label ?? null, variant, ...v });
+  const manifestRaw = files[MANIFEST_NAME];
+  let manifest: IconPackManifest;
+
+  if (manifestRaw) {
+    // --- strict mode: manifest.json is authoritative; files live under assets/ ---
+    let json: unknown;
+    try {
+      json = JSON.parse(Buffer.from(manifestRaw).toString("utf8"));
+    } catch {
+      throw new PackImportError("malformed_manifest", "manifest.json is not valid JSON");
+    }
+    const parsed = parseManifest(json);
+    if (!parsed.ok) throw new PackImportError("invalid_manifest", parsed.error);
+    manifest = parsed.manifest;
+
+    for (const icon of manifest.icons) {
+      const base = ingest(icon.file);
+      icons.push({ key: icon.key, label: icon.label ?? null, variant: null, ...base });
+      if (icon.variants) {
+        for (const [variant, file] of Object.entries(icon.variants)) {
+          const v = ingest(file);
+          icons.push({ key: icon.key, label: icon.label ?? null, variant, ...v });
+        }
       }
+    }
+  } else {
+    // --- flat / manifestless mode: synthesise a manifest from PNG/WebP filenames ---
+    const imageEntries = Object.keys(files)
+      .filter((n) => n !== MANIFEST_NAME && isAcceptableImageEntry(n))
+      .sort();
+    if (imageEntries.length === 0) {
+      throw new PackImportError(
+        "no_icons",
+        "No icons found. Add PNG or WebP files to the .zip (at the root or under assets/), or include a manifest.json.",
+      );
+    }
+    if (imageEntries.length > MAX_ICONS_PER_PACK) {
+      throw new PackImportError(
+        "too_many_icons",
+        `A pack may contain at most ${MAX_ICONS_PER_PACK} icons`,
+      );
+    }
+
+    const seen = new Map<string, string>(); // key → first source path
+    const declared: { key: string; label: string; file: string }[] = [];
+    for (const entry of imageEntries) {
+      const key = deriveIconKey(entry);
+      if (!key) {
+        throw new PackImportError(
+          "invalid_filename",
+          `Could not derive an icon name from "${entry}". Rename it using letters, numbers and hyphens.`,
+        );
+      }
+      const prev = seen.get(key);
+      if (prev) {
+        throw new PackImportError(
+          "duplicate_icon_key",
+          `Two files map to the same icon name "${key}" ("${prev}" and "${entry}"). Rename one so each icon name is unique.`,
+        );
+      }
+      seen.set(key, entry);
+      declared.push({ key, label: humanizeLabel(key), file: entry });
+    }
+
+    manifest = {
+      manifestVersion: 1,
+      id: derivePackId(zipName) ?? `pack-${randomBytes(4).toString("hex")}`,
+      name: derivePackName(zipName),
+      version: "1.0.0",
+      icons: declared,
+    };
+
+    for (const d of declared) {
+      const a = ingest(d.file);
+      icons.push({ key: d.key, label: d.label, variant: null, ...a });
     }
   }
 

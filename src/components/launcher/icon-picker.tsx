@@ -6,7 +6,7 @@ import { listBuiltinIcons } from "@/lib/icons/registry";
 import { buildBuiltinRef, buildCustomRef, buildPackRef, parseIconRef } from "@/lib/icons/resolve";
 import { suggestIconKey } from "@/lib/icons/suggest";
 import { MAX_ICON_BYTES } from "@/lib/icons/upload";
-import { MAX_PACK_ZIP_BYTES } from "@/lib/icons/pack-manifest";
+import { MAX_PACK_ICON_BYTES, MAX_PACK_ZIP_BYTES } from "@/lib/icons/pack-manifest";
 import {
   deleteCustomIcon as apiDeleteCustomIcon,
   fetchCustomIcons,
@@ -386,9 +386,14 @@ function PacksTab({
           {busy ? "Working…" : "Import pack (.zip)"}
         </Button>
         <span className="text-muted text-xs">
-          Local .zip, PNG/WebP icons, up to {Math.floor(MAX_PACK_ZIP_BYTES / 1024 / 1024)} MB.
+          ZIP up to {Math.floor(MAX_PACK_ZIP_BYTES / 1024 / 1024)} MB · PNG/WebP only · each icon up
+          to {Math.floor(MAX_PACK_ICON_BYTES / 1024 / 1024)} MB.
         </span>
       </div>
+      <p className="text-muted mt-1 text-xs">
+        Just zip your PNG/WebP icons (e.g. <code>truenas.png</code>) — names become the icons. A
+        <code> manifest.json</code> is optional.
+      </p>
 
       {error ? <p className="mt-2 text-xs text-rose-600 dark:text-rose-400">{error}</p> : null}
 

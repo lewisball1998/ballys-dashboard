@@ -2,6 +2,41 @@
 
 All notable changes to Bally's Dashboard are documented here.
 
+## 0.2.8.1 — Relax Icon Pack Import UX
+
+A UX/security polish for v0.2.8 import: accept the natural "just zip your icons"
+layout without weakening any archive/asset protection. No DB change (no migration),
+no Docker/deployment or auth change, SVG still rejected, no remote imports, no
+bundled packs/logos. See `docs/adr/0015-user-icon-pack-import.md`.
+
+### Added
+- **Manifestless (flat) packs.** A `.zip` of PNG/WebP files now imports with **no
+  `manifest.json`** required: files at the zip root (e.g. `truenas.png`) and/or
+  under `assets/` are accepted, and a manifest is **synthesised from the
+  filenames**. The strict `manifest.json` + `assets/` format still works exactly as
+  before (a present `manifest.json` is authoritative).
+- **Filename → icon derivation.** `truenas.png` → key `truenas`, label `TrueNAS`;
+  `sonarr-4k.png` → `sonarr-4k` / `Sonarr 4K`; `nginx-proxy-manager.webp` →
+  `nginx-proxy-manager` / `Nginx Proxy Manager`. Pack id/name derive from the
+  uploaded `.zip` filename (or a generated `pack-xxxxxxxx` slug when unavailable).
+
+### Changed
+- **Per-icon size cap raised 512 KB → 2 MB** for pack assets (`MAX_PACK_ICON_BYTES`;
+  the 512 KB custom-upload cap is unchanged). The ZIP stays capped at 5 MB.
+- **Clearer picker copy:** "ZIP up to 5 MB · PNG/WebP only · each icon up to 2 MB",
+  plus a hint that a `manifest.json` is optional.
+- **Clearer import errors:** a non-image root file reports an "Unsupported file in
+  pack…" message; the manifest-missing case is only an error when there are also no
+  usable PNG/WebP files (`no_icons`); SVG reports a clear "not supported" message.
+
+### Security (unchanged protections)
+- Still rejects: SVG/JPEG/GIF/ICO (magic-byte sniff, PNG/WebP only), path traversal,
+  absolute paths, backslashes, Windows drive letters, NUL bytes, symlinks/special
+  files, nested archives, and any nested folder other than `assets/`. Root files
+  other than PNG/WebP and `manifest.json` are still rejected.
+- Duplicate filename-derived keys are **rejected with a clear message** (the safe,
+  predictable choice — no silent renaming). Entry/zip/uncompressed caps unchanged.
+
 ## 0.2.8 — User Icon Pack Import
 
 Opt-in, user-driven icon-pack import. Users upload a **local `.zip`** pack

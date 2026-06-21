@@ -42,8 +42,10 @@ export const POST = protectedRoute(async (req) => {
   }
 
   const bytes = Buffer.from(await file.arrayBuffer());
+  // The uploaded filename seeds the pack id/name for a manifestless flat zip.
+  const zipName = file instanceof File && typeof file.name === "string" ? file.name : undefined;
   try {
-    return jsonOk(importIconPack(bytes), 201);
+    return jsonOk(importIconPack(bytes, zipName), 201);
   } catch (error) {
     if (error instanceof PackImportError) return jsonError(error.code, error.message, error.status);
     throw error;
