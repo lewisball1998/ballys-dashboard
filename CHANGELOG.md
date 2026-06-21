@@ -2,6 +2,43 @@
 
 All notable changes to Bally's Dashboard are documented here.
 
+## 0.2.3 — Custom Dashboard UI/UX (unreleased)
+
+The user-facing editing experience for the v0.2.2 homepage layout framework. No
+changes to the persisted document, API contract, schema, auth, or deployment —
+this is purely the frontend editor built on the existing
+`GET`/`PUT`/`POST reset` endpoints.
+
+### Added
+- **Customise mode** — a "Customise dashboard" entry on the homepage opens an
+  in-page editor. Normal view mode is unchanged (still server-rendered) and gains
+  only that one button.
+- **Show / hide & restore** — toggle any widget's visibility. Hidden widgets stay
+  in place (dimmed, with a "Hidden" badge and a "Show" action) so they are always
+  recoverable; view mode filters them out.
+- **Reorder** — move widgets within a section, and move whole sections, with
+  up/down buttons (disabled at the ends). No drag-and-drop.
+- **Resize** — per-widget size control (`small` / `medium` / `wide` / `full`),
+  a segmented control on desktop and a Select on mobile.
+- **Sections** — add a named section, rename (the default section may stay
+  headingless; user sections require a name), move up/down, move widgets between
+  sections via a "Move to section" Select, and delete a section **only when it is
+  empty**.
+- **Save / Cancel / Reset** — Save persists the whole layout in one `PUT`; Cancel
+  discards (with a confirm when there are unsaved changes); Reset restores the
+  default via the reset endpoint (with confirmation). A visible dirty indicator,
+  inline saving/saved/error states, and a `beforeunload` guard protect unsaved work.
+- **Accessible, mobile-friendly** — labelled controls and aria-labels, a
+  focus-trapped `ConfirmDialog` (Escape/overlay to cancel, focus restored on
+  close), a polite live region for action feedback, visible focus states, and a
+  layout usable down to 360px.
+
+### Notes
+- **No persisted-document/API/schema change.** The editor maps the resolved layout
+  to the existing config shape and relies on the server to validate, reconcile and
+  normalise on save. Full App Router route-change interception is intentionally not
+  added (covered by the dirty indicator + `beforeunload` + Cancel confirmation).
+
 ## 0.2.2 — Customisable Homepage Dashboard (unreleased)
 
 This release lands the **backend/framework foundation** for a customisable
