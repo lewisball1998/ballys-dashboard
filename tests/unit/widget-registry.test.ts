@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { getWidgetComponent } from "@/components/dashboard/widget-registry";
-import { DEFAULT_WIDGETS } from "@/components/dashboard/default-widgets";
+import { buildWidgetCatalog } from "@/server/dashboard/catalog";
 
 describe("widget registry", () => {
   it("resolves every known componentKey to a component", () => {
-    for (const key of ["system-overview", "app-health-summary", "notifications", "favourite-apps"]) {
+    for (const key of [
+      "system-overview",
+      "app-health-summary",
+      "notifications",
+      "favourite-apps",
+    ]) {
       expect(typeof getWidgetComponent(key)).toBe("function");
     }
   });
@@ -13,9 +18,9 @@ describe("widget registry", () => {
     expect(getWidgetComponent("does-not-exist")).toBeNull();
   });
 
-  it("every default widget maps to a registered component", () => {
-    for (const widget of DEFAULT_WIDGETS) {
-      expect(typeof getWidgetComponent(widget.componentKey)).toBe("function");
+  it("every catalogued widget maps to a registered component", () => {
+    for (const entry of buildWidgetCatalog()) {
+      expect(typeof getWidgetComponent(entry.componentKey)).toBe("function");
     }
   });
 });

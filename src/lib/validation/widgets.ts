@@ -1,30 +1,48 @@
 import { z } from "zod";
+import { WIDGET_SIZE_TOKENS } from "@/lib/dashboard";
 
 /**
- * Dashboard widget schemas. ⭐ ARCHITECT-OWNED.
+ * Dashboard layout schemas. ⭐ ARCHITECT-OWNED.
  *
- * NOTE: v0.1 dashboard layout is a read-only default derived from enabled
- * modules. `dashboardLayoutUpdateSchema` is defined for forward-compatibility
- * with v0.3 layout customisation and is NOT wired to an endpoint in v0.1.
+ * `dashboardLayoutConfigSchema` validates the persisted layout document and the
+ * `PUT /api/dashboard/layout` body. It is intentionally permissive on `version`
+ * (older documents are upgraded by migrateLayoutConfig before validation) and on
+ * content (the server reconciles the result against the widget catalog: unknown
+ * widgetKeys are dropped, missing ones appended). Bounds exist purely to reject
+ * abusive payloads, not to encode product rules.
  */
-export const widgetSizeSchema = z.object({
-  w: z.number().int().min(1).max(12),
-  h: z.number().int().min(1).max(12),
-});
 
-export const dashboardWidgetInputSchema = z.object({
-  id: z.string().min(1),
-  moduleId: z.string().min(1),
-  widgetId: z.string().min(1),
-  size: widgetSizeSchema,
-  order: z.number().int().min(0),
+/** ids are stable slugs like "core:system-overview" or "main". */
+const idSchema = z
+  .string()
+  .min(1)
+  .max(120)
+  .regex(/^[A-Za-z0-9:_-]+$/, "must be a slug ([A-Za-z0-9:_-])");
+
+export const widgetSizeTokenSchema = z.enum(WIDGET_SIZE_TOKENS);
+
+export const placedWidgetSchema = z.object({
+  id: idSchema,
+  widgetKey: idSchema,
+  hidden: z.boolean().default(false),
+  size: widgetSizeTokenSchema.default("medium"),
+  order: z.number().int().min(0).default(0),
   config: z.record(z.string(), z.unknown()).default({}),
 });
 
-export const dashboardLayoutUpdateSchema = z.object({
-  widgets: z.array(dashboardWidgetInputSchema),
+export const layoutSectionSchema = z.object({
+  id: idSchema,
+  title: z.string().max(120).default(""),
+  order: z.number().int().min(0).default(0),
+  widgets: z.array(placedWidgetSchema).max(200),
 });
 
-export type WidgetSizeInput = z.infer<typeof widgetSizeSchema>;
-export type DashboardWidgetInput = z.infer<typeof dashboardWidgetInputSchema>;
-export type DashboardLayoutUpdateInput = z.infer<typeof dashboardLayoutUpdateSchema>;
+export const dashboardLayoutConfigSchema = z.object({
+  version: z.number().int().min(1).max(1_000_000),
+  sections: z.array(layoutSectionSchema).min(1).max(50),
+});
+
+export type WidgetSizeTokenInput = z.infer<typeof widgetSizeTokenSchema>;
+export type PlacedWidgetInput = z.infer<typeof placedWidgetSchema>;
+export type LayoutSectionInput = z.infer<typeof layoutSectionSchema>;
+export type DashboardLayoutConfigInput = z.infer<typeof dashboardLayoutConfigSchema>;

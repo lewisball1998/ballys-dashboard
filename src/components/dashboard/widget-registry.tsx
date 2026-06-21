@@ -5,9 +5,9 @@ import { NotificationsWidget } from "./widgets/notifications-widget";
 import { FavouriteAppsWidget } from "./widgets/favourite-apps-widget";
 
 /**
- * Maps a `DashboardWidgetDTO.componentKey` to a concrete component. Keys mirror
- * the core module's WidgetDefinition ids (src/modules/core). Unknown keys render
- * an error in the grid rather than crashing.
+ * Maps a `ResolvedWidget.componentKey` to a concrete component. Keys mirror the
+ * modules' WidgetDefinition componentKeys (src/modules/*) and the server widget
+ * catalog. Unknown keys render an error in the grid rather than crashing.
  */
 const REGISTRY: Record<string, ComponentType> = {
   "system-overview": SystemOverviewWidget,
