@@ -11,7 +11,7 @@ All notable changes to Bally's Dashboard are documented here.
   all selects (including the dashboard editor's "Add app widget" pickers). No
   functional, API, schema, or Docker changes.
 
-## 0.2.4 — Individual App Dashboard Widgets (unreleased)
+## 0.2.4 — Individual App Dashboard Widgets
 
 Pin a specific app as its own homepage dashboard widget. Built on the existing
 v0.2.2/v0.2.3 layout framework and editor — no DB schema, migration, API
@@ -50,7 +50,7 @@ contract, or deployment changes (see docs/adr/0012).
 - **No persisted-document/API/schema change.** App widgets reuse the existing
   `dashboard_layouts` document and `GET`/`PUT`/`POST reset` endpoints.
 
-## 0.2.3 — Custom Dashboard UI/UX (unreleased)
+## 0.2.3 — Custom Dashboard UI/UX
 
 The user-facing editing experience for the v0.2.2 homepage layout framework. No
 changes to the persisted document, API contract, schema, auth, or deployment —
@@ -87,7 +87,7 @@ this is purely the frontend editor built on the existing
   normalise on save. Full App Router route-change interception is intentionally not
   added (covered by the dirty indicator + `beforeunload` + Cancel confirmation).
 
-## 0.2.2 — Customisable Homepage Dashboard (unreleased)
+## 0.2.2 — Customisable Homepage Dashboard
 
 This release lands the **backend/framework foundation** for a customisable
 homepage dashboard. The interactive edit UI (show/hide, reorder, resize and
@@ -131,7 +131,7 @@ until a layout is saved.
   multi-user/auth changes. No Docker/deployment/port changes. See
   `docs/adr/0011-dashboard-layout-customisation.md`.
 
-## 0.2.1 — Import Apps from Docker (unreleased)
+## 0.2.1 — Import Apps from Docker
 
 ### Added
 - **Import from Docker** — a new **Import from Docker** button on the Apps page
@@ -173,7 +173,7 @@ until a layout is saved.
   container id is not persisted on the app. No destructive/bulk operations were
   added — imported apps are managed through the normal Apps flow.
 
-## 0.2.0 — Docker Command Centre (unreleased)
+## 0.2.0 — Docker Command Centre
 
 ### Added
 - **Docker Command Centre** — a new **Docker** page that lists your containers
