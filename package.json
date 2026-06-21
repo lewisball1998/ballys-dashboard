@@ -1,6 +1,6 @@
 {
   "name": "ballys-dashboard",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@9.15.4",
@@ -24,6 +24,7 @@
   "dependencies": {
     "better-sqlite3": "^11.8.1",
     "drizzle-orm": "^0.38.3",
+    "fflate": "^0.8.3",
     "next": "^15.1.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
