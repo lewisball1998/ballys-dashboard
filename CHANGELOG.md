@@ -2,6 +2,45 @@
 
 All notable changes to Bally's Dashboard are documented here.
 
+## 0.2.6 — App Icon Library & Custom Icons
+
+Apps can now use a proper icon — a first-party built-in glyph, an uploaded
+custom image, or a remote URL — with a consistent renderer everywhere and a safe
+initials fallback. Built on the existing `apps.icon` field; no apps-table change.
+See `docs/adr/0013-app-icon-library.md`.
+
+### Added
+- **Built-in icon library** — a small, curated set of first-party *generic*
+  glyphs (media, downloads, books, network/security, metrics, database,
+  containers, home, cloud, storage, code, mail, music, photos, monitoring,
+  generic). Monochrome SVGs rendered with `currentColor`, so they adapt to the
+  active theme. No third-party brand assets are bundled.
+- **Typed icon references** — `apps.icon` now understands `builtin:<key>`
+  (and `builtin:<key>?v=<variant>`) and `custom:<id>`, alongside existing
+  http(s) URLs. Empty/unknown values fall back to initials.
+- **Icon picker in the app editor** — choose from the Library, a Custom upload,
+  a URL, or None, with a live preview.
+- **Custom icon uploads (PNG/WebP)** — upload an image (hard 512 KB cap); files
+  are stored on the data volume and served by **opaque id only** (never a
+  filesystem path). Identical uploads are de-duplicated by content hash.
+- **Auto-suggest** — the picker offers a sensible built-in based on the app name
+  / URL. It is only ever *offered* and never overwrites an explicit choice.
+- **Shared `AppIcon` renderer** — launcher cards, Quick Launch and individual app
+  widgets now use one icon path (URL/custom → `<img>`, built-in → themed glyph,
+  otherwise initials), with graceful `onError` fallback to initials.
+
+### Security
+- Uploads are validated by **magic bytes** (not the client-declared type), size
+  capped, and served with `X-Content-Type-Options: nosniff`, inline disposition
+  and immutable caching. **User-uploaded SVG is intentionally not accepted** in
+  this release (built-in first-party SVGs are reviewed repo assets).
+
+### Notes
+- One additive migration (`custom_icons` metadata table). The apps table, API
+  contract for apps, and Docker/deployment are unchanged. Existing icon URLs keep
+  working. With custom icons, the backup target is the whole data dir (icons live
+  next to the SQLite file), configurable via `ICONS_DIR`.
+
 ## 0.2.5 — Dark Mode Select Readability Fix
 
 ### Fixed

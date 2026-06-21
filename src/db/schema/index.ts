@@ -7,6 +7,7 @@ export * from "./settings";
 export * from "./dashboard-layouts";
 export * from "./categories";
 export * from "./apps";
+export * from "./custom-icons";
 export * from "./app-health";
 export * from "./metrics";
 export * from "./notifications";

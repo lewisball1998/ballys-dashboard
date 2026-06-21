@@ -9,6 +9,7 @@ export * from "./common";
 export * from "./settings";
 export * from "./categories";
 export * from "./apps";
+export * from "./icons";
 export * from "./health";
 export * from "./widgets";
 export * from "./metrics";

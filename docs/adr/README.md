@@ -15,3 +15,6 @@ Lightweight ADRs (one decision per file). Status is one of
 | [0008](0008-container-metrics-and-docker-socket.md) | Container-visible metrics; opt-in Docker socket | Accepted |
 | [0009](0009-multi-arch-image.md) | Multi-arch image, amd64-first | Accepted |
 | [0010](0010-auth-csrf-readiness.md) | Auth/CSRF/readiness enforcement (Node-runtime, no middleware) | Accepted |
+| [0011](0011-dashboard-layout-customisation.md) | Dashboard layout customisation | Accepted |
+| [0012](0012-individual-app-widgets.md) | Individual app dashboard widgets | Accepted |
+| [0013](0013-app-icon-library.md) | App icon library & custom icons | Accepted |
