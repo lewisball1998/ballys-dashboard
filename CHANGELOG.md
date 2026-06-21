@@ -2,6 +2,50 @@
 
 All notable changes to Bally's Dashboard are documented here.
 
+## 0.2.2 — Customisable Homepage Dashboard (unreleased)
+
+This release lands the **backend/framework foundation** for a customisable
+homepage dashboard. The interactive edit UI (show/hide, reorder, resize and
+section controls) is a follow-up phase; everything here is the data model,
+persistence and API it will drive. The default homepage is visually unchanged
+until a layout is saved.
+
+### Added
+- **Versioned layout document** — the homepage is now a persisted, versioned
+  layout config (`DashboardLayoutConfig`): an ordered list of **named sections**,
+  each holding placed widgets with a width **size token** (`small` / `medium` /
+  `wide` / `full` → 1–4 columns), an `order`, and a `hidden` flag. Hidden widgets
+  stay in the document so they are always **restorable**.
+- **Server widget catalog** — the authoritative list of available widgets is
+  derived from the enabled modules' `WidgetDefinition`s (single source of truth),
+  and drives both the default layout and config reconciliation.
+- **Default layout builder** — reproduces the previous homepage exactly (single
+  unnamed section; same widgets, order and sizes), so a fresh install looks
+  identical. Future modules' widgets auto-appear (visible) in the first section.
+- **Persistence + API** — a new `dashboard_layouts` table stores the layout as a
+  JSON document. `GET /api/dashboard/layout` returns the resolved layout (or the
+  default), `PUT /api/dashboard/layout` validates + reconciles + saves, and
+  `POST /api/dashboard/layout/reset` restores the default. All same-origin (CSRF)
+  and auth protected like the rest of the API.
+- **Reconcile / fallback** — stored configs are validated and reconciled against
+  the catalog: unknown/removed widgets are dropped, new ones appended, orders
+  normalised. A missing, corrupt or invalid stored document falls back to the
+  computed default rather than failing the homepage.
+
+### Framework only (no UI yet)
+- **Named sections** are first-class in the data model and validation (simple
+  groups: id, title, order, widgets — no nesting/colours/icons/permissions). The
+  UI exposes a single default section for now.
+- **Templates** and **import/export** are represented in the data model only
+  (the `dashboard_layouts.kind`/`name` columns and a versioned, portable document
+  with a `migrateLayoutConfig` upgrader). No template picker, import/export, or
+  drag-and-drop is implemented.
+
+### Notes
+- One new migration (`dashboard_layouts`). Single global layout only — no
+  multi-user/auth changes. No Docker/deployment/port changes. See
+  `docs/adr/0011-dashboard-layout-customisation.md`.
+
 ## 0.2.1 — Import Apps from Docker (unreleased)
 
 ### Added

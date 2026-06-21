@@ -4,6 +4,7 @@
  * `pnpm db:generate` to keep migration history linear and conflict-free.
  */
 export * from "./settings";
+export * from "./dashboard-layouts";
 export * from "./categories";
 export * from "./apps";
 export * from "./app-health";

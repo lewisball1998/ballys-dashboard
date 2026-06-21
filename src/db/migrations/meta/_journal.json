@@ -15,6 +15,13 @@
       "when": 1781983999121,
       "tag": "0001_add_health_insecure_tls",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1782024647733,
+      "tag": "0002_parallel_firebrand",
+      "breakpoints": true
     }
   ]
 }
