@@ -79,6 +79,11 @@ export function Launcher() {
               Import from Docker
             </Button>
           </Link>
+          <Link href="/apps/icons">
+            <Button variant="outline" size="sm">
+              Match icons
+            </Button>
+          </Link>
           <Button size="sm" onClick={openCreate}>
             Add app
           </Button>
