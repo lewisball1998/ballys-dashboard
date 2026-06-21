@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { DashboardLayoutDTO, ResolvedWidget } from "@/lib/types";
+import type { AppDTO, DashboardLayoutDTO, ResolvedWidget } from "@/lib/types";
 import {
+  addAppWidget,
   addSection,
   canDeleteSection,
   deleteSection,
@@ -9,6 +10,8 @@ import {
   moveSection,
   moveWidget,
   moveWidgetToSection,
+  placedAppIds,
+  removeWidget,
   renameSection,
   setWidgetSize,
   slugifySectionId,
@@ -26,7 +29,31 @@ function widget(id: string, over: Partial<ResolvedWidget> = {}): ResolvedWidget 
     hidden: false,
     order: 0,
     config: {},
+    instanceable: false,
     ...over,
+  };
+}
+
+function app(id: number, name = `App ${id}`): AppDTO {
+  return {
+    id,
+    categoryId: null,
+    name,
+    url: `https://example.test/${id}`,
+    icon: null,
+    description: null,
+    openNewTab: true,
+    isFavourite: false,
+    authRequired: false,
+    healthUrl: null,
+    healthEnabled: false,
+    healthInsecureTls: false,
+    isHidden: false,
+    lifecycle: "active",
+    sortOrder: 0,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+    latestHealth: null,
   };
 }
 
@@ -149,5 +176,61 @@ describe("widget operations", () => {
     moveWidget(d, "main", "a", "down");
     addSection(d, "X");
     expect(JSON.stringify(d)).toBe(snapshot);
+  });
+});
+
+describe("app widget operations", () => {
+  it("adds an app widget in resolved shape with appId in config", () => {
+    const d = addAppWidget(draft(), app(42, "Grafana"), "ops");
+    const added = d.sections.find((s) => s.id === "ops")!.widgets.at(-1)!;
+    expect(added.id).toBe("app:42");
+    expect(added.widgetKey).toBe("app");
+    expect(added.componentKey).toBe("app");
+    expect(added.title).toBe("Grafana");
+    expect(added.instanceable).toBe(true);
+    expect(added.config).toEqual({ appId: 42 });
+    expect(added.size).toBe("small");
+    expect(added.columns).toBe(1);
+    // round-trips through dtoToConfig, keeping appId in config
+    const cfg = dtoToConfig(d);
+    const placed = cfg.sections.find((s) => s.id === "ops")!.widgets.at(-1)!;
+    expect(placed.config).toEqual({ appId: 42 });
+  });
+
+  it("prevents duplicate app widgets (one per app, no-op)", () => {
+    const once = addAppWidget(draft(), app(42), "main");
+    const twice = addAppWidget(once, app(42), "ops");
+    expect(placedAppIds(twice)).toEqual([42]);
+    expect(twice).toBe(once); // unchanged reference on no-op
+  });
+
+  it("no-ops when the target section does not exist", () => {
+    const d = draft();
+    expect(addAppWidget(d, app(7), "nope")).toBe(d);
+  });
+
+  it("placedAppIds collects app ids across sections", () => {
+    let d = addAppWidget(draft(), app(1), "main");
+    d = addAppWidget(d, app(2), "ops");
+    expect(placedAppIds(d).sort()).toEqual([1, 2]);
+  });
+
+  it("removes an instanceable widget but never a built-in", () => {
+    const d = addAppWidget(draft(), app(42), "main");
+    const removed = removeWidget(d, "app:42");
+    expect(placedAppIds(removed)).toEqual([]);
+    // built-in widgets are not removable (no-op, same reference)
+    expect(removeWidget(d, "a")).toBe(d);
+  });
+
+  it("does not mutate the input draft when adding/removing", () => {
+    const d = draft();
+    const snapshot = JSON.stringify(d);
+    addAppWidget(d, app(99), "main");
+    const withApp = addAppWidget(d, app(99), "main");
+    const withAppSnapshot = JSON.stringify(withApp);
+    removeWidget(withApp, "app:99");
+    expect(JSON.stringify(d)).toBe(snapshot);
+    expect(JSON.stringify(withApp)).toBe(withAppSnapshot);
   });
 });

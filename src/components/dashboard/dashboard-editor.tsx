@@ -9,7 +9,9 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { resetLayout, saveLayout } from "@/hooks/dashboard-api";
 import { CustomiseToolbar } from "./customise-toolbar";
 import { SectionEditor } from "./section-editor";
+import { AddAppWidget } from "./add-app-widget";
 import {
+  addAppWidget,
   addSection,
   canDeleteSection,
   deleteSection,
@@ -18,6 +20,8 @@ import {
   moveSection,
   moveWidget,
   moveWidgetToSection,
+  placedAppIds,
+  removeWidget,
   renameSection,
   setWidgetSize,
   toggleWidgetHidden,
@@ -207,9 +211,19 @@ export function DashboardEditor({
             onMoveWidgetToSection={(widgetId, targetId) =>
               apply((d) => moveWidgetToSection(d, widgetId, targetId), "Widget moved to section")
             }
+            onRemoveWidget={(widgetId) => apply((d) => removeWidget(d, widgetId), "Widget removed")}
           />
         ))}
       </div>
+
+      <AddAppWidget
+        sections={sectionOptions}
+        placedAppIds={placedAppIds(draft)}
+        defaultSectionId={sectionOptions[0]?.id ?? DEFAULT_SECTION_ID}
+        onAdd={(app, sectionId) =>
+          apply((d) => addAppWidget(d, app, sectionId), `Added ${app.name} widget`)
+        }
+      />
 
       <div className="border-border bg-surface-2/20 rounded-xl border border-dashed p-4">
         <label htmlFor="new-section" className="text-muted mb-1 block text-xs font-medium">

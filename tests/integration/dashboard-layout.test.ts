@@ -1,14 +1,17 @@
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/db";
 import { runMigrations } from "@/db/migrate";
-import { dashboardLayouts } from "@/db/schema";
+import { apps, dashboardLayouts } from "@/db/schema";
 import { getResolvedLayout, resetLayout, saveLayout } from "@/server/services/dashboard-layout";
+import { createApp, deleteApp } from "@/server/services/apps";
 import { buildDefaultLayout } from "@/server/dashboard/default-layout";
+import { APP_WIDGET_KEY, appWidgetId } from "@/lib/dashboard";
 import type { DashboardLayoutConfig } from "@/lib/types";
 
 beforeAll(() => runMigrations());
 beforeEach(() => {
   db.delete(dashboardLayouts).run();
+  db.delete(apps).run();
 });
 
 function visibleKeys(layout: {
@@ -103,6 +106,59 @@ describe("dashboard layout service", () => {
       "app-health-summary",
       "notifications",
     ]);
+  });
+
+  it("persists an app widget, enriches its title, survives deletion, and reset clears it", () => {
+    const app = createApp({ name: "Grafana", url: "https://grafana.test" });
+
+    const base = buildDefaultLayout();
+    base.sections[0]!.widgets.push({
+      id: appWidgetId(app.id),
+      widgetKey: APP_WIDGET_KEY,
+      hidden: false,
+      size: "small",
+      order: 99,
+      config: { appId: app.id },
+    });
+    saveLayout(base);
+
+    // Reads back with the title enriched from the apps table.
+    const saved = getResolvedLayout()
+      .sections.flatMap((s) => s.widgets)
+      .find((w) => w.id === appWidgetId(app.id));
+    expect(saved).toBeDefined();
+    expect(saved!.widgetKey).toBe(APP_WIDGET_KEY);
+    expect(saved!.instanceable).toBe(true);
+    expect(saved!.title).toBe("Grafana");
+    expect(saved!.config).toEqual({ appId: app.id });
+
+    // Deleting the app keeps the widget (not auto-dropped) with a calm fallback.
+    deleteApp(app.id);
+    const afterDelete = getResolvedLayout()
+      .sections.flatMap((s) => s.widgets)
+      .find((w) => w.id === appWidgetId(app.id));
+    expect(afterDelete).toBeDefined();
+    expect(afterDelete!.title).toBe("Unavailable app");
+
+    // Reset restores the built-in default — no app widgets.
+    const reset = resetLayout();
+    const keys = reset.sections.flatMap((s) => s.widgets.map((w) => w.widgetKey));
+    expect(keys).not.toContain(APP_WIDGET_KEY);
+  });
+
+  it("drops a malformed stored app widget (invalid appId) on read", () => {
+    const base = buildDefaultLayout();
+    base.sections[0]!.widgets.push({
+      id: "app:bad",
+      widgetKey: APP_WIDGET_KEY,
+      hidden: false,
+      size: "small",
+      order: 99,
+      config: {}, // no appId
+    });
+    saveLayout(base);
+    const keys = getResolvedLayout().sections.flatMap((s) => s.widgets.map((w) => w.widgetKey));
+    expect(keys).not.toContain(APP_WIDGET_KEY);
   });
 
   it("drops a stored widget whose key is no longer in the catalog", () => {

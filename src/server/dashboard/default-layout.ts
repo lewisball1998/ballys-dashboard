@@ -1,8 +1,4 @@
-import {
-  CURRENT_LAYOUT_VERSION,
-  DEFAULT_SECTION_ID,
-  DEFAULT_SECTION_TITLE,
-} from "@/lib/dashboard";
+import { CURRENT_LAYOUT_VERSION, DEFAULT_SECTION_ID, DEFAULT_SECTION_TITLE } from "@/lib/dashboard";
 import type {
   DashboardLayoutConfig,
   PlacedWidget,
@@ -51,9 +47,12 @@ export function buildDefaultLayout(
     if (entry) place(entry, item.size);
   }
 
-  // 2. Any remaining catalog widgets (future modules) appended, visible.
+  // 2. Any remaining *singleton* catalog widgets (future modules) appended,
+  //    visible. Instanceable widgets (e.g. the app widget) are templates the
+  //    user adds explicitly, so the default layout never seeds them.
   for (const entry of catalog) {
     if (used.has(entry.widgetKey)) continue;
+    if (entry.instanceable) continue;
     place(entry, entry.defaultSize);
   }
 

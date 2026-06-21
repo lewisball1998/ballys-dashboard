@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sizeTokenToColumns } from "@/lib/dashboard";
+import { APP_WIDGET_KEY, appWidgetId, sizeTokenToColumns } from "@/lib/dashboard";
 import { dashboardLayoutConfigSchema } from "@/lib/validation";
 import type { DashboardLayoutConfig, PlacedWidget, WidgetCatalogEntry } from "@/lib/types";
 import { buildWidgetCatalog } from "@/server/dashboard/catalog";
@@ -8,9 +8,49 @@ import { migrateLayoutConfig } from "@/server/dashboard/migrate-config";
 import { reconcileConfig, resolveLayout } from "@/server/dashboard/reconcile";
 
 const catalog: WidgetCatalogEntry[] = [
-  { moduleId: "core", widgetKey: "a", componentKey: "a", title: "A", defaultSize: "medium" },
-  { moduleId: "core", widgetKey: "b", componentKey: "b", title: "B", defaultSize: "small" },
+  {
+    moduleId: "core",
+    widgetKey: "a",
+    componentKey: "a",
+    title: "A",
+    defaultSize: "medium",
+    instanceable: false,
+  },
+  {
+    moduleId: "core",
+    widgetKey: "b",
+    componentKey: "b",
+    title: "B",
+    defaultSize: "small",
+    instanceable: false,
+  },
 ];
+
+/** Catalog including the generic, instanceable app widget. */
+const appCatalog: WidgetCatalogEntry[] = [
+  ...catalog,
+  {
+    moduleId: "core",
+    widgetKey: APP_WIDGET_KEY,
+    componentKey: APP_WIDGET_KEY,
+    title: "App",
+    defaultSize: "small",
+    instanceable: true,
+  },
+];
+
+/** Build an app-widget PlacedWidget bound to `appId`. */
+function appWidget(appId: number, over: Partial<PlacedWidget> = {}): PlacedWidget {
+  return {
+    id: appWidgetId(appId),
+    widgetKey: APP_WIDGET_KEY,
+    hidden: false,
+    size: "small",
+    order: 0,
+    config: { appId },
+    ...over,
+  };
+}
 
 function widget(
   over: Partial<PlacedWidget> & Pick<PlacedWidget, "id" | "widgetKey">,
@@ -47,6 +87,18 @@ describe("widget catalog", () => {
         "notifications",
       ]),
     );
+  });
+
+  it("includes the generic app widget marked instanceable", () => {
+    const app = buildWidgetCatalog().find((c) => c.widgetKey === APP_WIDGET_KEY);
+    expect(app).toBeDefined();
+    expect(app?.instanceable).toBe(true);
+    expect(app?.componentKey).toBe(APP_WIDGET_KEY);
+  });
+
+  it("marks the built-in widgets non-instanceable", () => {
+    const builtins = buildWidgetCatalog().filter((c) => c.widgetKey !== APP_WIDGET_KEY);
+    expect(builtins.every((c) => c.instanceable === false)).toBe(true);
   });
 });
 
@@ -124,6 +176,60 @@ describe("reconcileConfig", () => {
     const keys = firstWidgets(result).map((w) => w.widgetKey);
     expect(keys).toEqual(expect.arrayContaining(["a", "b"]));
   });
+
+  it("keeps valid app widget instances", () => {
+    const result = reconcileConfig(
+      config([appWidget(42), widget({ id: "core:a", widgetKey: "a" })]),
+      appCatalog,
+    );
+    const app = firstWidgets(result).find((w) => w.id === appWidgetId(42));
+    expect(app).toBeDefined();
+    expect(app?.widgetKey).toBe(APP_WIDGET_KEY);
+    expect(app?.config).toEqual({ appId: 42 });
+  });
+
+  it("does NOT auto-append the instanceable app template", () => {
+    const result = reconcileConfig(config([widget({ id: "core:a", widgetKey: "a" })]), appCatalog);
+    const keys = result.sections.flatMap((s) => s.widgets.map((w) => w.widgetKey));
+    expect(keys).toContain("b"); // singleton still auto-appended
+    expect(keys).not.toContain(APP_WIDGET_KEY); // template never seeded
+  });
+
+  it("drops malformed app widgets (missing / invalid appId)", () => {
+    const result = reconcileConfig(
+      config([
+        appWidget(1, { id: "app:1", config: {} }), // no appId
+        appWidget(2, { id: "app:2", config: { appId: 0 } }), // not positive
+        appWidget(3, { id: "app:3", config: { appId: "x" } }), // not a number
+        appWidget(4), // valid
+      ]),
+      appCatalog,
+    );
+    const appIds = firstWidgets(result)
+      .filter((w) => w.widgetKey === APP_WIDGET_KEY)
+      .map((w) => w.id);
+    expect(appIds).toEqual([appWidgetId(4)]); // only the valid app instance survives
+  });
+
+  it("dedupes app widgets by instance id (keeps the first)", () => {
+    const result = reconcileConfig(
+      config([appWidget(42, { size: "small" }), appWidget(42, { size: "full" })]),
+      appCatalog,
+    );
+    const apps = firstWidgets(result).filter((w) => w.id === appWidgetId(42));
+    expect(apps).toHaveLength(1);
+    expect(apps[0]!.size).toBe("small");
+  });
+});
+
+describe("instanceable in default layout", () => {
+  it("never seeds instanceable widgets into the default layout", () => {
+    const layout = buildDefaultLayout(appCatalog);
+    const keys = layout.sections.flatMap((s) => s.widgets.map((w) => w.widgetKey));
+    expect(keys).toContain("a");
+    expect(keys).toContain("b");
+    expect(keys).not.toContain(APP_WIDGET_KEY);
+  });
 });
 
 describe("resolveLayout", () => {
@@ -142,7 +248,16 @@ describe("resolveLayout", () => {
     expect(a.componentKey).toBe("a");
     expect(a.columns).toBe(4);
     expect(a.hidden).toBe(true);
+    expect(a.instanceable).toBe(false);
     expect(b.columns).toBe(1);
+  });
+
+  it("marks app widgets instanceable and carries their config", () => {
+    const dto = resolveLayout(config([appWidget(42)]), appCatalog);
+    const app = dto.sections[0]!.widgets[0]!;
+    expect(app.instanceable).toBe(true);
+    expect(app.componentKey).toBe(APP_WIDGET_KEY);
+    expect(app.config).toEqual({ appId: 42 });
   });
 });
 
@@ -187,5 +302,33 @@ describe("dashboardLayoutConfigSchema", () => {
         sections: [{ id: "bad id!", order: 0, widgets: [] }],
       }).success,
     ).toBe(false);
+  });
+
+  it("accepts an app widget with a positive-integer config.appId", () => {
+    const parsed = dashboardLayoutConfigSchema.safeParse({
+      version: 1,
+      sections: [
+        {
+          id: "main",
+          order: 0,
+          widgets: [{ id: "app:42", widgetKey: APP_WIDGET_KEY, config: { appId: 42 } }],
+        },
+      ],
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  it("rejects an app widget without a valid config.appId", () => {
+    const bad = (config: unknown) =>
+      dashboardLayoutConfigSchema.safeParse({
+        version: 1,
+        sections: [
+          { id: "main", order: 0, widgets: [{ id: "app:1", widgetKey: APP_WIDGET_KEY, config }] },
+        ],
+      }).success;
+    expect(bad({})).toBe(false); // missing
+    expect(bad({ appId: 0 })).toBe(false); // not positive
+    expect(bad({ appId: 1.5 })).toBe(false); // not integer
+    expect(bad({ appId: "1" })).toBe(false); // not a number
   });
 });

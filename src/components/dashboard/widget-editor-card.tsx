@@ -22,6 +22,8 @@ interface WidgetEditorCardProps {
   onToggleHidden: () => void;
   onSetSize: (size: WidgetSizeToken) => void;
   onMoveToSection: (targetSectionId: string) => void;
+  /** Remove this instance entirely. Only provided for instanceable widgets. */
+  onRemove?: () => void;
 }
 
 function SizeControl({
@@ -94,9 +96,11 @@ export function WidgetEditorCard({
   onToggleHidden,
   onSetSize,
   onMoveToSection,
+  onRemove,
 }: WidgetEditorCardProps) {
   const sizeLabelId = `size-${widget.id}`;
   const moveLabelId = `move-${widget.id}`;
+  const removable = widget.instanceable && onRemove !== undefined;
 
   return (
     <div
@@ -114,15 +118,28 @@ export function WidgetEditorCard({
             </Badge>
           ) : null}
         </div>
-        <Button
-          variant={widget.hidden ? "primary" : "outline"}
-          size="sm"
-          aria-pressed={widget.hidden}
-          aria-label={widget.hidden ? `Show ${widget.title}` : `Hide ${widget.title}`}
-          onClick={onToggleHidden}
-        >
-          {widget.hidden ? "Show" : "Hide"}
-        </Button>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <Button
+            variant={widget.hidden ? "primary" : "outline"}
+            size="sm"
+            aria-pressed={widget.hidden}
+            aria-label={widget.hidden ? `Show ${widget.title}` : `Hide ${widget.title}`}
+            onClick={onToggleHidden}
+          >
+            {widget.hidden ? "Show" : "Hide"}
+          </Button>
+          {removable ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label={`Remove ${widget.title}`}
+              title="Remove this widget from your dashboard"
+              onClick={onRemove}
+            >
+              Remove
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <div className="flex flex-wrap items-end gap-x-4 gap-y-3">

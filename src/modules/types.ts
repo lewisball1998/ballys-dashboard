@@ -75,6 +75,14 @@ export interface WidgetDefinition {
   readonly title: string;
   readonly componentKey: string;
   readonly defaultSize?: { w: number; h: number };
+  /**
+   * Instanceable widgets are *templates* the user adds explicitly, zero-to-many
+   * times, each instance carrying its own `config` (e.g. an app widget bound to
+   * an app id). The framework must never auto-place them: they are excluded from
+   * the default layout and from reconcile's auto-append. Singleton built-ins
+   * leave this falsy and keep their existing auto-place behaviour.
+   */
+  readonly instanceable?: boolean;
 }
 
 // --- Module definition -------------------------------------------------------

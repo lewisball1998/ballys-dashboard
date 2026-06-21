@@ -39,6 +39,10 @@ export const coreModule: ModuleDefinition = {
       { id: "favourite-apps", title: "Quick Launch", componentKey: "favourite-apps" },
       { id: "notifications", title: "Notifications", componentKey: "notifications" },
       { id: "app-health-summary", title: "App Health", componentKey: "app-health-summary" },
+      // Generic, instanceable app widget (v0.2.4): the user adds one per app from
+      // the editor; each instance binds to an app via `config.appId`. Never
+      // auto-placed (instanceable) so it stays out of the default layout.
+      { id: "app", title: "App", componentKey: "app", instanceable: true },
     ],
   },
 };

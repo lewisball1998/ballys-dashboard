@@ -31,6 +31,7 @@ export function buildWidgetCatalog(): WidgetCatalogEntry[] {
         componentKey: def.componentKey,
         title: def.title,
         defaultSize: defaultSizeToken(def),
+        instanceable: def.instanceable ?? false,
       });
     }
   }
@@ -38,8 +39,6 @@ export function buildWidgetCatalog(): WidgetCatalogEntry[] {
 }
 
 /** Index a catalog by `widgetKey` for O(1) lookups during reconcile/resolve. */
-export function indexCatalog(
-  catalog: WidgetCatalogEntry[],
-): Map<string, WidgetCatalogEntry> {
+export function indexCatalog(catalog: WidgetCatalogEntry[]): Map<string, WidgetCatalogEntry> {
   return new Map(catalog.map((entry) => [entry.widgetKey, entry]));
 }
