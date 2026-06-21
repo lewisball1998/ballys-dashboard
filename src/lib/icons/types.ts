@@ -38,6 +38,15 @@ export type ParsedIconRef =
   | { kind: "url"; url: string }
   | { kind: "builtin"; key: string; variant: IconVariant | null }
   | { kind: "custom"; id: string }
+  | {
+      kind: "pack";
+      /** Imported pack slug (`icon_packs.id`). */
+      packId: string;
+      /** Icon key within the pack (`icon_pack_icons.key`). */
+      iconKey: string;
+      /** Optional manifest-declared variant slug (free-form, not {@link IconVariant}). */
+      variant: string | null;
+    }
   | { kind: "legacy"; value: string };
 
 /** Output of the resolver — how AppIcon should render the icon. */

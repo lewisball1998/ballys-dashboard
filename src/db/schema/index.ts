@@ -8,6 +8,7 @@ export * from "./dashboard-layouts";
 export * from "./categories";
 export * from "./apps";
 export * from "./custom-icons";
+export * from "./icon-packs";
 export * from "./app-health";
 export * from "./metrics";
 export * from "./notifications";
