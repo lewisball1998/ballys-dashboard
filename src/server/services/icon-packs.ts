@@ -56,8 +56,8 @@ export function listIconPacks(): IconPackDTO[] {
  * moved into place and rows are written in a single transaction; any failure
  * cleans up files and persists nothing. Duplicate pack id → 409.
  */
-export function importIconPack(zipBytes: Buffer): IconPackDTO {
-  const prep = preparePackFromZip(zipBytes);
+export function importIconPack(zipBytes: Buffer, zipName?: string | null): IconPackDTO {
+  const prep = preparePackFromZip(zipBytes, zipName);
   const packId = prep.manifest.id;
 
   if (db.select({ id: iconPacks.id }).from(iconPacks).where(eq(iconPacks.id, packId)).get()) {

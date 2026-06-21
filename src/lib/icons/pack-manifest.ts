@@ -20,11 +20,36 @@ export const MAX_PACK_ENTRIES = 600;
 export const MAX_ICONS_PER_PACK = 512;
 /** Max size of the manifest.json entry. */
 export const MAX_MANIFEST_BYTES = 256 * 1024;
-/** Per-asset cap, shared with custom uploads (512 KB). */
-export { MAX_ICON_BYTES } from "./upload";
+/**
+ * Per-icon size cap for an imported pack asset (2 MB, v0.2.8.1). Distinct from
+ * the 512 KB custom-upload cap (`MAX_ICON_BYTES` in ./upload) — pack icons are
+ * often higher-resolution PNGs, and the 5 MB total-zip cap keeps the upload safe.
+ */
+export const MAX_PACK_ICON_BYTES = 2 * 1024 * 1024;
 
 /** Canonical, root-level manifest filename inside the archive. */
 export const MANIFEST_NAME = "manifest.json";
+
+/** Importable image extensions (PNG/WebP only — SVG/JPEG/GIF/ICO are not). */
+const IMAGE_EXT_RE = /\.(png|webp)$/i;
+
+/**
+ * True for an importable image *entry* inside the archive: a PNG/WebP file either
+ * at the zip root (`truenas.png`) or under `assets/` (`assets/plex.webp`). This is
+ * what relaxes the v0.2.8 "assets/-only" rule for manifestless packs (v0.2.8.1)
+ * while keeping every path-safety guard: NUL, backslash, absolute path, drive
+ * letter, traversal, and any non-`assets/` nested folder are still rejected.
+ */
+export function isAcceptableImageEntry(name: unknown): name is string {
+  if (typeof name !== "string") return false;
+  if (name.length === 0 || name.length > 255) return false;
+  if (name.includes("\0") || name.includes("\\")) return false;
+  if (name.startsWith("/")) return false; // absolute (POSIX)
+  if (/^[A-Za-z]:/.test(name)) return false; // Windows drive letter
+  if (!IMAGE_EXT_RE.test(name)) return false; // PNG/WebP only
+  if (name.includes("/")) return isSafeAssetPath(name); // nested → assets/ only
+  return /^[A-Za-z0-9._-]+$/.test(name); // root-level single filename
+}
 
 /**
  * A safe, `assets/`-rooted relative path inside the archive. Rejects traversal

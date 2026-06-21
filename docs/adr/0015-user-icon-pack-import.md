@@ -6,6 +6,21 @@ Implements the "Future icon-pack import" design of record from
 [ADR 0014](0014-icon-policy-and-pack-import.md) (which that ADR explicitly
 deferred). This ADR records what v0.2.8 actually shipped.
 
+> **v0.2.8.1 update (UX relaxation).** Import now also accepts a **manifestless
+> "flat" zip**: PNG/WebP files at the zip root (e.g. `truenas.png`) and/or under
+> `assets/`, with **no `manifest.json`**. When no manifest is present, one is
+> synthesised from the filenames — basename → strict icon-key slug + humanised
+> label (`sonarr-4k.png` → `sonarr-4k` / "Sonarr 4K"); pack id/name derive from the
+> uploaded `.zip` filename (or a generated `pack-xxxxxxxx` slug). A present
+> `manifest.json` stays authoritative and `assets/`-rooted. **Duplicate
+> filename-derived keys are rejected** with a clear message (no silent renaming).
+> The per-icon cap is raised **512 KB → 2 MB** (`MAX_PACK_ICON_BYTES`; the 512 KB
+> custom-upload cap is untouched); the 5 MB zip cap is unchanged. **All archive/
+> asset protections below are unchanged** — PNG/WebP-only magic sniff (SVG/JPEG/
+> GIF/ICO rejected), traversal/absolute/backslash/drive/NUL/symlink/nested-archive
+> rejection, and rejection of any non-`assets/` nested folder or non-image root
+> file. No DB/migration, Docker, or auth change.
+
 ## Context
 v0.2.6 (ADR 0013) gave apps a typed `apps.icon` reference (`builtin:`/`custom:`/
 URL/initials), PNG/WebP custom uploads with SVG blocked, a `custom_icons` table,

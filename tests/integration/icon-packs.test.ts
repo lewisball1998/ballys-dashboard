@@ -64,7 +64,26 @@ beforeEach(() => {
   rmSync(join(iconsDir, "packs"), { recursive: true, force: true });
 });
 
+/** A manifestless flat zip of root-level PNG/WebP files (v0.2.8.1). */
+function flatZip(): Buffer {
+  return Buffer.from(zipSync({ "truenas.png": png(3), "sonarr-4k.png": png(5) }));
+}
+
 describe("icon pack service", () => {
+  it("imports a manifestless flat zip, deriving pack + icon names, and serves it", () => {
+    const dto = importIconPack(flatZip(), "My Icons.zip");
+    expect(dto.id).toBe("my-icons");
+    expect(dto.name).toBe("My Icons");
+    expect(dto.iconCount).toBe(2);
+    expect(dto.icons).toEqual([
+      { key: "sonarr-4k", label: "Sonarr 4K", variants: [] },
+      { key: "truenas", label: "TrueNAS", variants: [] },
+    ]);
+    expect(getPackIconBytes("my-icons", "truenas", null)?.bytes?.[8]).toBe(3);
+    expect(getPackIconBytes("my-icons", "sonarr-4k", null)?.mime).toBe("image/png");
+    expect(deleteIconPack("my-icons")).toBe(true);
+  });
+
   it("imports, lists, serves and deletes a pack", () => {
     const dto = importIconPack(packZip());
     expect(dto.id).toBe("my-pack");

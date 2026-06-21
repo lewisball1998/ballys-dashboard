@@ -131,8 +131,9 @@ describe("preparePackFromZip — rejections", () => {
     expectCode(() => preparePackFromZip(Buffer.from("this is not a zip archive")), "malformed_zip");
   });
 
-  it("rejects a missing manifest", () => {
-    expectCode(() => preparePackFromZip(makeZip({ "assets/plex.png": png() })), "missing_manifest");
+  it("rejects a zip with no manifest and no usable icons (no_icons)", () => {
+    // A directory-only entry is skipped → no manifest, no images.
+    expectCode(() => preparePackFromZip(makeZip({ "emptydir/": new Uint8Array(0) })), "no_icons");
   });
 
   it("rejects malformed manifest JSON", () => {
@@ -206,13 +207,45 @@ describe("preparePackFromZip — rejections", () => {
     );
   });
 
-  it("rejects an asset over the per-icon size cap", () => {
+  it("rejects an asset over the 2 MB per-icon size cap", () => {
     expectCode(
       () =>
         preparePackFromZip(
-          makeZip({ "manifest.json": manifest(), "assets/plex.png": png(512 * 1024 + 1) }),
+          makeZip({ "manifest.json": manifest(), "assets/plex.png": png(2 * 1024 * 1024 + 1) }),
         ),
       "asset_too_large",
+    );
+  });
+
+  it("accepts an asset between the old 512 KB and the new 2 MB cap", () => {
+    const prep = preparePackFromZip(
+      makeZip({ "manifest.json": manifest(), "assets/plex.png": png(1024 * 1024) }),
+    );
+    expect(prep.icons).toHaveLength(1);
+  });
+
+  it("rejects a nested folder other than assets/", () => {
+    expectCode(() => preparePackFromZip(makeZip({ "icons/plex.png": png() })), "invalid_entry");
+  });
+
+  it("rejects a root non-image file in a flat zip", () => {
+    expectCode(
+      () => preparePackFromZip(makeZip({ "plex.png": png(), "readme.txt": utf8("hi") })),
+      "invalid_entry",
+    );
+  });
+
+  it("rejects duplicate filename-derived keys in a flat zip", () => {
+    expectCode(
+      () => preparePackFromZip(makeZip({ "Plex.png": png(10, 1), "plex.png": png(10, 2) })),
+      "duplicate_icon_key",
+    );
+  });
+
+  it("rejects an SVG file in a flat zip (PNG/WebP only)", () => {
+    expectCode(
+      () => preparePackFromZip(makeZip({ "x.png": utf8("<svg></svg>") })),
+      "unsupported_type",
     );
   });
 
@@ -227,5 +260,49 @@ describe("preparePackFromZip — rejections", () => {
       makeZip({ "manifest.json": manifest(), "assets/plex.png": png() }),
     );
     expectCode(() => preparePackFromZip(zip), "unsafe_entry");
+  });
+});
+
+describe("preparePackFromZip — manifestless (flat) packs", () => {
+  it("imports a single root-level PNG and derives the pack from the zip name", () => {
+    const prep = preparePackFromZip(makeZip({ "truenas.png": png() }), "My Icons.zip");
+    expect(prep.manifest.id).toBe("my-icons");
+    expect(prep.manifest.name).toBe("My Icons");
+    expect(prep.icons).toHaveLength(1);
+    expect(prep.icons[0]).toMatchObject({
+      key: "truenas",
+      label: "TrueNAS",
+      variant: null,
+      mime: "image/png",
+    });
+  });
+
+  it("imports multiple root-level icons with humanised labels", () => {
+    const prep = preparePackFromZip(
+      makeZip({
+        "truenas.png": png(10, 1),
+        "sonarr-4k.png": png(10, 2),
+        "nginx-proxy-manager.webp": new Uint8Array([
+          0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50,
+        ]),
+      }),
+      "apps.zip",
+    );
+    const byKey = Object.fromEntries(prep.icons.map((i) => [i.key, i.label]));
+    expect(byKey["truenas"]).toBe("TrueNAS");
+    expect(byKey["sonarr-4k"]).toBe("Sonarr 4K");
+    expect(byKey["nginx-proxy-manager"]).toBe("Nginx Proxy Manager");
+    expect(prep.icons).toHaveLength(3);
+  });
+
+  it("imports icons placed under assets/ with no manifest", () => {
+    const prep = preparePackFromZip(makeZip({ "assets/plex.png": png() }), "icons.zip");
+    expect(prep.icons.map((i) => i.key)).toEqual(["plex"]);
+  });
+
+  it("generates a safe unique pack id when the zip name is unusable", () => {
+    const prep = preparePackFromZip(makeZip({ "plex.png": png() }), "***.zip");
+    expect(prep.manifest.id).toMatch(/^pack-[a-f0-9]{8}$/);
+    expect(prep.manifest.name).toBe("Imported Icons");
   });
 });
