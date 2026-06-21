@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { PACK_ID_RE, PACK_ICON_KEY_RE } from "@/lib/icons/resolve";
+import { PACK_ID_RE, PACK_ICON_KEY_RE, PACK_VARIANT_RE } from "@/lib/icons/resolve";
 
 /** Custom icon request schemas. ⭐ ARCHITECT-OWNED. */
 
@@ -27,3 +27,36 @@ export const packIconRawParamSchema = z.object({
 });
 
 export type PackIconRawParam = z.infer<typeof packIconRawParamSchema>;
+
+/**
+ * Body for `POST /api/icons/packs/:packId/apply` — bulk-assign pack icons to apps
+ * (v0.2.9 Icon Pack App Matching). Each assignment is a vetted (appId → iconKey)
+ * pick from the review UI; the server re-validates existence and re-enforces the
+ * overwrite gate, so the list is never trusted to be safe on its own.
+ */
+export const packMatchApplySchema = z.object({
+  assignments: z
+    .array(
+      z.object({
+        appId: z.number().int().positive(),
+        iconKey: z.string().trim().min(1).max(64).regex(PACK_ICON_KEY_RE, "Invalid icon key"),
+        /** Optional declared variant slug; falls back to the base icon when absent. */
+        variant: z
+          .string()
+          .trim()
+          .min(1)
+          .max(32)
+          .regex(PACK_VARIANT_RE, "Invalid variant")
+          .nullish(),
+      }),
+    )
+    .min(1)
+    .max(1000),
+  /**
+   * Allow replacing apps that already have an explicit (built-in/custom/URL/pack/
+   * legacy) icon. Default false: protected apps are skipped unless the user opts in.
+   */
+  overwriteCustomised: z.boolean().optional(),
+});
+
+export type PackMatchApplyInput = z.infer<typeof packMatchApplySchema>;

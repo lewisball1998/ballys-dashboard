@@ -2,6 +2,44 @@
 
 All notable changes to Bally's Dashboard are documented here.
 
+## 0.2.9 — Icon Pack App Matching
+
+After importing an icon pack, a new review screen **suggests** which pack icons
+fit your existing apps and **bulk-applies only the matches you tick and confirm**.
+Icons are **never auto-applied** — every change goes through review + a
+confirmation dialog, and the server re-enforces overwrite protection. No DB change
+(no migration), no new dependency, no Docker/deployment or auth change, SVG still
+rejected, no remote imports, no bundled packs/logos. The existing manual Packs-tab
+selection is unchanged. See `docs/adr/0016-icon-pack-app-matching.md`.
+
+### Added
+- **Match review page (`/apps/icons`).** Reached from the **Apps** header
+  ("Match icons") and from a post-import link in the picker's Packs tab. Per app:
+  apply checkbox, current-icon → proposed-icon previews, a confidence badge, a
+  short reason, and a native select to override the suggested icon. Includes
+  pack selector, **Select all / Clear**, an **Include hidden/retired** toggle
+  (off by default), a **Replace existing icons** toggle (off by default), a
+  confirmation dialog, and an applied/skipped/failed result summary.
+- **Matching engine** (`src/lib/icons/pack-match.ts`, pure/unit-tested):
+  `matchPackToApps(apps, pack)` suggests a pack icon per app with a
+  confidence tier (high/medium/low) and reason. Matches on app name, URL host,
+  icon key and label, with **qualifier stripping in both directions** (`sonarr`
+  ↔ "Sonarr 4K", `sonarr-4k` ↔ "Sonarr"). Apps with no icon and a confident
+  match are pre-ticked; apps with an existing icon are protected and unticked.
+- **`POST /api/icons/packs/:packId/apply`** (`protectedRoute`, POST-only):
+  bulk-applies vetted `{ appId → iconKey (+ variant?) }` assignments and returns
+  per-item outcomes (partial success, mirroring the Docker import result). The
+  server independently validates the pack/icon/app, treats an absent variant as
+  a safe base-icon fallback, no-ops an already-set ref, and **skips apps with an
+  existing icon unless `overwriteCustomised` is set** — so a tampered client can
+  never clobber a custom icon.
+
+### Changed
+- **Shared scoring core.** The built-in suggester's normalisation, qualifier
+  stripping and alias scoring moved to `src/lib/icons/match-core.ts` and are now
+  reused by both `suggestIconKey` and the pack matcher (single source of truth).
+  `suggestIconKey` behaviour is unchanged (guarded by the existing tests).
+
 ## 0.2.8.1 — Relax Icon Pack Import UX
 
 A UX/security polish for v0.2.8 import: accept the natural "just zip your icons"

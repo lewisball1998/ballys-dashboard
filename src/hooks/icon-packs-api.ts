@@ -1,4 +1,5 @@
-import type { ApiResponse, IconPackDTO, ListResult } from "@/lib/types";
+import type { ApiResponse, IconPackDTO, ListResult, PackMatchApplyResultDTO } from "@/lib/types";
+import type { PackMatchApplyInput } from "@/lib/validation";
 import { apiRequest } from "./api-client";
 
 /** Typed, React-free client functions for the icon-pack endpoints (v0.2.8). */
@@ -11,6 +12,14 @@ export function deleteIconPack(id: string) {
   return apiRequest<{ id: string }>(`/api/icons/packs/${encodeURIComponent(id)}`, {
     method: "DELETE",
   });
+}
+
+/** Bulk-apply vetted pack-icon → app assignments (v0.2.9 Icon Pack App Matching). */
+export function applyPackMatches(packId: string, input: PackMatchApplyInput) {
+  return apiRequest<PackMatchApplyResultDTO>(
+    `/api/icons/packs/${encodeURIComponent(packId)}/apply`,
+    { method: "POST", body: JSON.stringify(input) },
+  );
 }
 
 /**

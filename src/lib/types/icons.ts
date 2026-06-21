@@ -37,3 +37,30 @@ export interface IconPackDTO {
   createdAt: string;
   icons: IconPackIconDTO[];
 }
+
+/**
+ * Per-app outcome of a bulk pack-icon match apply (v0.2.9):
+ *   - `applied` — `apps.icon` was set to the pack ref.
+ *   - `skipped` — intentionally unchanged (already set, protected custom icon
+ *     without opt-in, unknown icon key, or app not found).
+ *   - `failed`  — an unexpected error while updating the app.
+ */
+export type PackMatchOutcomeStatus = "applied" | "skipped" | "failed";
+
+export interface PackMatchOutcomeDTO {
+  appId: number;
+  name: string;
+  status: PackMatchOutcomeStatus;
+  /** The resulting icon reference when `status === "applied"`. */
+  icon: string | null;
+  /** Reason for a skip/failure, when applicable. */
+  message: string | null;
+}
+
+/** Summary of a bulk apply (v0.2.9). Mirrors the Docker import result shape. */
+export interface PackMatchApplyResultDTO {
+  applied: number;
+  skipped: number;
+  failed: number;
+  outcomes: PackMatchOutcomeDTO[];
+}

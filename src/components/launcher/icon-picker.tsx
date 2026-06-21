@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CustomIconDTO, IconPackDTO } from "@/lib/types";
 import { listBuiltinIcons } from "@/lib/icons/registry";
@@ -328,6 +329,9 @@ function PacksTab({
   const [packs, setPacks] = useState<IconPackDTO[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // The pack just imported in this session — offers a (secondary) link to the
+  // bulk match-to-apps review. Navigating there leaves the open form unsaved.
+  const [justImported, setJustImported] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
@@ -353,6 +357,7 @@ function PacksTab({
     if (fileRef.current) fileRef.current.value = "";
     if (res.ok) {
       await load();
+      setJustImported(res.data.id);
       if (res.data.icons[0]) onSelect(res.data.id, res.data.icons[0].key);
     } else {
       setError(res.error.message);
@@ -396,6 +401,18 @@ function PacksTab({
       </p>
 
       {error ? <p className="mt-2 text-xs text-rose-600 dark:text-rose-400">{error}</p> : null}
+
+      {justImported ? (
+        <p className="text-muted mt-2 text-xs">
+          Imported.{" "}
+          <Link
+            href={`/apps/icons?pack=${encodeURIComponent(justImported)}`}
+            className="text-accent underline"
+          >
+            Match these icons to apps →
+          </Link>
+        </p>
+      ) : null}
 
       <div className="mt-2 max-h-56 space-y-3 overflow-y-auto">
         {packs === null ? (

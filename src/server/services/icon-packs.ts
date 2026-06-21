@@ -1,10 +1,18 @@
 import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
-import { iconPacks, iconPackIcons } from "@/db/schema";
+import { apps, iconPacks, iconPackIcons } from "@/db/schema";
 import type { IconPackRow } from "@/db/schema";
-import type { IconPackDTO, IconPackIconDTO } from "@/lib/types";
+import type {
+  IconPackDTO,
+  IconPackIconDTO,
+  PackMatchApplyResultDTO,
+  PackMatchOutcomeDTO,
+} from "@/lib/types";
+import type { PackMatchApplyInput } from "@/lib/validation";
+import { buildPackRef, parseIconRef } from "@/lib/icons/resolve";
 import { deletePackDir, readPackAsset, stagePackAssets } from "@/server/icons/storage";
 import { PackImportError, preparePackFromZip } from "@/server/icons/pack-import";
+import { updateApp } from "./apps";
 
 function metaToDTO(row: IconPackRow, icons: IconPackIconDTO[]): IconPackDTO {
   return {
@@ -161,4 +169,125 @@ export function deleteIconPack(packId: string): boolean {
   });
   deletePackDir(packId);
   return true;
+}
+
+const VARIANT_SEP = "/";
+
+/**
+ * Bulk-apply user-vetted pack-icon → app assignments (v0.2.9 Icon Pack App
+ * Matching). Returns `null` when the pack does not exist (→ route 404).
+ *
+ * Safety is enforced HERE, independent of the client, so a tampered request can
+ * never silently clobber icons (partial success, per-item outcomes — mirrors the
+ * Docker import pattern):
+ *   - the icon key must exist in this pack (else `skipped`);
+ *   - a declared variant that is absent falls back to the base icon (always safe —
+ *     a valid key always has a base row);
+ *   - the app must exist (else `skipped`);
+ *   - an app that already holds this exact ref is a no-op (`skipped` "Already set");
+ *   - an app with ANY other explicit icon is `skipped` unless `overwriteCustomised`.
+ * Only valid, selected, non-protected assignments write `apps.icon` via
+ * {@link buildPackRef}; everything else is reported, never applied.
+ */
+export function applyPackMatches(
+  packId: string,
+  input: PackMatchApplyInput,
+): PackMatchApplyResultDTO | null {
+  const pack = db
+    .select({ id: iconPacks.id })
+    .from(iconPacks)
+    .where(eq(iconPacks.id, packId))
+    .get();
+  if (!pack) return null;
+
+  // One read of this pack's icons → fast existence checks for key + (key,variant).
+  const iconRows = db
+    .select({ key: iconPackIcons.key, variant: iconPackIcons.variant })
+    .from(iconPackIcons)
+    .where(eq(iconPackIcons.packId, packId))
+    .all();
+  const baseKeys = new Set(iconRows.filter((r) => r.variant == null).map((r) => r.key));
+  const variantKeys = new Set(
+    iconRows.filter((r) => r.variant != null).map((r) => `${r.key}${VARIANT_SEP}${r.variant}`),
+  );
+
+  const overwrite = input.overwriteCustomised === true;
+  const outcomes: PackMatchOutcomeDTO[] = [];
+  const seen = new Set<number>();
+
+  for (const a of input.assignments) {
+    // De-dupe defensively: a repeated appId can only be a client bug.
+    if (seen.has(a.appId)) {
+      outcomes.push(outcome(a.appId, "", "skipped", null, "Duplicate assignment"));
+      continue;
+    }
+    seen.add(a.appId);
+
+    if (!baseKeys.has(a.iconKey)) {
+      outcomes.push(
+        outcome(a.appId, "", "skipped", null, `Icon "${a.iconKey}" is not in this pack`),
+      );
+      continue;
+    }
+
+    // Absent/unknown variant → base icon (safe: the base row always exists here).
+    const variant =
+      a.variant && variantKeys.has(`${a.iconKey}${VARIANT_SEP}${a.variant}`) ? a.variant : null;
+    const ref = buildPackRef(packId, a.iconKey, variant);
+
+    const appRow = db
+      .select({ id: apps.id, name: apps.name, icon: apps.icon })
+      .from(apps)
+      .where(eq(apps.id, a.appId))
+      .get();
+    if (!appRow) {
+      outcomes.push(outcome(a.appId, "", "skipped", null, "App not found"));
+      continue;
+    }
+
+    const current = (appRow.icon ?? "").trim();
+    if (current === ref) {
+      outcomes.push(outcome(appRow.id, appRow.name, "skipped", ref, "Already set"));
+      continue;
+    }
+    const hasIcon = parseIconRef(current).kind !== "none";
+    if (hasIcon && !overwrite) {
+      outcomes.push(
+        outcome(appRow.id, appRow.name, "skipped", null, "Has a custom icon (not overwritten)"),
+      );
+      continue;
+    }
+
+    try {
+      updateApp(appRow.id, { icon: ref });
+      outcomes.push(outcome(appRow.id, appRow.name, "applied", ref, null));
+    } catch (err) {
+      outcomes.push(
+        outcome(
+          appRow.id,
+          appRow.name,
+          "failed",
+          null,
+          err instanceof Error ? err.message : "Failed to update app",
+        ),
+      );
+    }
+  }
+
+  return {
+    applied: outcomes.filter((o) => o.status === "applied").length,
+    skipped: outcomes.filter((o) => o.status === "skipped").length,
+    failed: outcomes.filter((o) => o.status === "failed").length,
+    outcomes,
+  };
+}
+
+function outcome(
+  appId: number,
+  name: string,
+  status: PackMatchOutcomeDTO["status"],
+  icon: string | null,
+  message: string | null,
+): PackMatchOutcomeDTO {
+  return { appId, name, status, icon, message };
 }
