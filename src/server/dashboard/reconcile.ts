@@ -1,7 +1,9 @@
 import {
+  APP_WIDGET_KEY,
   CURRENT_LAYOUT_VERSION,
   DEFAULT_SECTION_ID,
   DEFAULT_SECTION_TITLE,
+  readAppId,
   sizeTokenToColumns,
 } from "@/lib/dashboard";
 import type {
@@ -22,9 +24,11 @@ import { indexCatalog } from "./catalog";
  * reconcileConfig: make a (schema-valid) document safe and canonical —
  *   - guarantee at least one section (the default section if none survive);
  *   - drop widgets whose widgetKey is not in the catalog (removed/unknown);
+ *   - drop malformed app instances (widgetKey "app" without a valid config.appId);
  *   - drop duplicate widget ids (keep first occurrence across the whole layout);
- *   - append catalog widgets absent everywhere to the FIRST section, visible
- *     (so a new module's widget auto-appears on existing saved layouts);
+ *   - append catalog *singleton* widgets absent everywhere to the FIRST section,
+ *     visible (so a new module's widget auto-appears on existing saved layouts);
+ *     instanceable widgets (e.g. the app widget) are never auto-appended;
  *   - normalise section order and per-section widget order to 0..n-1.
  *
  * resolveLayout: join the catalog in to produce the render-ready DTO (title,
@@ -50,6 +54,9 @@ export function reconcileConfig(
       const widgets: PlacedWidget[] = [];
       for (const widget of [...section.widgets].sort((a, b) => a.order - b.order)) {
         if (!known.has(widget.widgetKey)) continue; // unknown/removed widget
+        // App instances must carry a valid appId; drop malformed ones defensively
+        // (hand-edited / corrupt documents) before they reach the client.
+        if (widget.widgetKey === APP_WIDGET_KEY && readAppId(widget.config) === null) continue;
         if (seenIds.has(widget.id)) continue; // duplicate instance id
         seenIds.add(widget.id);
         placedKeys.add(widget.widgetKey);
@@ -70,8 +77,11 @@ export function reconcileConfig(
       };
     });
 
-  // Append any catalog widgets not present anywhere to the first section, visible.
-  const additions = catalog.filter((entry) => !placedKeys.has(entry.widgetKey));
+  // Append any catalog *singleton* widgets not present anywhere to the first
+  // section, visible. Instanceable templates are user-added only — never seeded.
+  const additions = catalog.filter(
+    (entry) => !entry.instanceable && !placedKeys.has(entry.widgetKey),
+  );
   const target = sections[0];
   if (additions.length > 0 && target) {
     for (const entry of additions) {
@@ -115,6 +125,7 @@ export function resolveLayout(
           hidden: widget.hidden,
           order: widget.order,
           config: widget.config ?? {},
+          instanceable: entry.instanceable,
         });
       }
       return { id: section.id, title: section.title, order: section.order, widgets };

@@ -2,6 +2,45 @@
 
 All notable changes to Bally's Dashboard are documented here.
 
+## 0.2.4 — Individual App Dashboard Widgets (unreleased)
+
+Pin a specific app as its own homepage dashboard widget. Built on the existing
+v0.2.2/v0.2.3 layout framework and editor — no DB schema, migration, API
+contract, or deployment changes (see docs/adr/0012).
+
+### Added
+- **App widgets** — add an existing app as a standalone homepage widget. Each
+  widget shows the app name, status (when health is enabled), category badge
+  (where available), icon/initial and an Open button.
+- **"Add an app widget" in the editor** — choose an app (active apps, hidden
+  included, retired excluded) and a target section. Already-added apps are
+  disabled — **one widget per app**. Adding only marks the layout dirty; nothing
+  saves until **Save changes**.
+- **Remove action** — instanceable widgets (app widgets) gain a **Remove** action,
+  distinct from Hide: Hide keeps the widget in the layout (invisible in normal
+  view); Remove deletes the instance entirely. Built-in widgets remain Hide-only.
+- **Full editor parity** — app widgets show/hide, resize, reorder, move between
+  sections, and round-trip through save/cancel/reset like built-in widgets.
+
+### Changed
+- **Widget contract gains `instanceable`** (`WidgetDefinition` / catalog /
+  resolved widget). Instanceable widgets are known to the catalog so their
+  instances survive reconcile, but are **never auto-placed** — excluded from the
+  default layout and from reconcile's auto-append. The generic `app` widget is the
+  first instanceable widget, contributed by the core module.
+- **Server-side title enrichment** — the layout service fills app-widget titles
+  from the apps table after resolving; `resolveLayout` stays pure (catalog-only).
+
+### Notes
+- **Resilient to missing apps.** Deleted/missing apps render a calm "unavailable"
+  state (with guidance to remove the widget); retired apps render a muted state.
+  Layouts never auto-drop an app widget for a temporarily-missing app — only
+  structurally malformed instances (invalid `config.appId`) are dropped.
+- **Safe defaults.** Default and Reset layouts contain no app widgets; no app is
+  ever added automatically. App widgets store only `{ appId }` in widget config.
+- **No persisted-document/API/schema change.** App widgets reuse the existing
+  `dashboard_layouts` document and `GET`/`PUT`/`POST reset` endpoints.
+
 ## 0.2.3 — Custom Dashboard UI/UX (unreleased)
 
 The user-facing editing experience for the v0.2.2 homepage layout framework. No

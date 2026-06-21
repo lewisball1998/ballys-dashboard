@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { WIDGET_SIZE_TOKENS } from "@/lib/dashboard";
+import { APP_WIDGET_KEY, WIDGET_SIZE_TOKENS } from "@/lib/dashboard";
 
 /**
  * Dashboard layout schemas. ⭐ ARCHITECT-OWNED.
@@ -21,14 +21,26 @@ const idSchema = z
 
 export const widgetSizeTokenSchema = z.enum(WIDGET_SIZE_TOKENS);
 
-export const placedWidgetSchema = z.object({
-  id: idSchema,
-  widgetKey: idSchema,
-  hidden: z.boolean().default(false),
-  size: widgetSizeTokenSchema.default("medium"),
-  order: z.number().int().min(0).default(0),
-  config: z.record(z.string(), z.unknown()).default({}),
-});
+export const placedWidgetSchema = z
+  .object({
+    id: idSchema,
+    widgetKey: idSchema,
+    hidden: z.boolean().default(false),
+    size: widgetSizeTokenSchema.default("medium"),
+    order: z.number().int().min(0).default(0),
+    config: z.record(z.string(), z.unknown()).default({}),
+  })
+  // App widgets (widgetKey "app") must carry a positive-integer `config.appId`.
+  // Other widgets keep an unconstrained config bag. Reconcile defensively drops
+  // any app instance that still slips through with a malformed appId.
+  .refine(
+    (w) =>
+      w.widgetKey !== APP_WIDGET_KEY ||
+      (typeof w.config.appId === "number" &&
+        Number.isInteger(w.config.appId) &&
+        w.config.appId > 0),
+    { message: "app widget requires config.appId (positive integer)", path: ["config", "appId"] },
+  );
 
 export const layoutSectionSchema = z.object({
   id: idSchema,

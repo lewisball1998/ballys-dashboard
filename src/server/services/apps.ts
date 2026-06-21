@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { apps } from "@/db/schema";
 import type { App } from "@/db/schema";
@@ -36,7 +36,11 @@ function toDTO(row: App, latestHealth: AppHealthResultDTO | null): AppDTO {
 
 function nextSortOrder(categoryId: number | null): number {
   const cond = categoryId == null ? isNull(apps.categoryId) : eq(apps.categoryId, categoryId);
-  const row = db.select({ max: sql<number | null>`max(${apps.sortOrder})` }).from(apps).where(cond).get();
+  const row = db
+    .select({ max: sql<number | null>`max(${apps.sortOrder})` })
+    .from(apps)
+    .where(cond)
+    .get();
   return (row?.max ?? -1) + 1;
 }
 
@@ -69,6 +73,20 @@ export function getApp(id: number): AppDTO | null {
   const row = db.select().from(apps).where(eq(apps.id, id)).get();
   if (!row) return null;
   return toDTO(row, getLatestHealth(id));
+}
+
+/**
+ * Map app id → name for the given ids (missing ids are simply absent). A focused,
+ * health-free lookup used to enrich resolved app-widget titles server-side.
+ */
+export function getAppNames(ids: number[]): Map<number, string> {
+  if (ids.length === 0) return new Map();
+  const rows = db
+    .select({ id: apps.id, name: apps.name })
+    .from(apps)
+    .where(inArray(apps.id, ids))
+    .all();
+  return new Map(rows.map((r) => [r.id, r.name]));
 }
 
 export function createApp(input: AppCreateInput): AppDTO {

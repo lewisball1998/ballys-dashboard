@@ -1,5 +1,12 @@
-import { CURRENT_LAYOUT_VERSION, sizeTokenToColumns } from "@/lib/dashboard";
+import {
+  APP_WIDGET_KEY,
+  appWidgetId,
+  CURRENT_LAYOUT_VERSION,
+  readAppId,
+  sizeTokenToColumns,
+} from "@/lib/dashboard";
 import type {
+  AppDTO,
   DashboardLayoutConfig,
   DashboardLayoutDTO,
   ResolvedWidget,
@@ -170,6 +177,68 @@ export function setWidgetSize(dto: Draft, widgetId: string, size: WidgetSizeToke
     if (widget) {
       widget.size = size;
       widget.columns = sizeTokenToColumns(size);
+      break;
+    }
+  }
+  return next;
+}
+
+// --- App widget operations (v0.2.4) ------------------------------------------
+
+/** App ids currently placed as app widgets anywhere in the draft (for the picker
+ *  to disable already-added apps; enforces one widget per app). */
+export function placedAppIds(dto: Draft): number[] {
+  const ids: number[] = [];
+  for (const section of dto.sections) {
+    for (const widget of section.widgets) {
+      if (widget.widgetKey !== APP_WIDGET_KEY) continue;
+      const appId = readAppId(widget.config);
+      if (appId !== null) ids.push(appId);
+    }
+  }
+  return ids;
+}
+
+/**
+ * Append an app widget for `app` to `targetSectionId`. No-op (one widget per app)
+ * if a widget for that app already exists anywhere, or if the target section is
+ * gone. The widget is built in resolved shape so it round-trips through
+ * `dtoToConfig`; the persisted config carries only `{ appId }`.
+ */
+export function addAppWidget(dto: Draft, app: AppDTO, targetSectionId: string): Draft {
+  const id = appWidgetId(app.id);
+  if (dto.sections.some((s) => s.widgets.some((w) => w.id === id))) return dto;
+  if (!dto.sections.some((s) => s.id === targetSectionId)) return dto;
+
+  const next = clone(dto);
+  const target = next.sections.find((s) => s.id === targetSectionId)!;
+  target.widgets.push({
+    id,
+    widgetKey: APP_WIDGET_KEY,
+    componentKey: APP_WIDGET_KEY,
+    title: app.name,
+    size: "small",
+    columns: sizeTokenToColumns("small"),
+    hidden: false,
+    order: target.widgets.length,
+    config: { appId: app.id },
+    instanceable: true,
+  });
+  return next;
+}
+
+/** Remove a widget instance entirely. Only instanceable widgets (user-added,
+ *  e.g. app widgets) are removable; built-ins can only be hidden, never removed. */
+export function removeWidget(dto: Draft, widgetId: string): Draft {
+  const owner = dto.sections.find((s) => s.widgets.some((w) => w.id === widgetId));
+  const widget = owner?.widgets.find((w) => w.id === widgetId);
+  if (!widget || !widget.instanceable) return dto;
+
+  const next = clone(dto);
+  for (const section of next.sections) {
+    const i = section.widgets.findIndex((w) => w.id === widgetId);
+    if (i >= 0) {
+      section.widgets.splice(i, 1);
       break;
     }
   }

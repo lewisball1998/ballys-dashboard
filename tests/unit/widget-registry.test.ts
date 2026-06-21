@@ -9,6 +9,7 @@ describe("widget registry", () => {
       "app-health-summary",
       "notifications",
       "favourite-apps",
+      "app",
     ]) {
       expect(typeof getWidgetComponent(key)).toBe("function");
     }

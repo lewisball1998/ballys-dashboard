@@ -25,6 +25,7 @@ interface SectionEditorProps {
   onToggleHidden: (widgetId: string) => void;
   onSetSize: (widgetId: string, size: WidgetSizeToken) => void;
   onMoveWidgetToSection: (widgetId: string, targetSectionId: string) => void;
+  onRemoveWidget: (widgetId: string) => void;
 }
 
 export function SectionEditor({
@@ -41,6 +42,7 @@ export function SectionEditor({
   onToggleHidden,
   onSetSize,
   onMoveWidgetToSection,
+  onRemoveWidget,
 }: SectionEditorProps) {
   const [name, setName] = useState(section.title);
   const titleId = `section-title-${section.id}`;
@@ -134,6 +136,7 @@ export function SectionEditor({
               onToggleHidden={() => onToggleHidden(widget.id)}
               onSetSize={(size) => onSetSize(widget.id, size)}
               onMoveToSection={(targetId) => onMoveWidgetToSection(widget.id, targetId)}
+              onRemove={widget.instanceable ? () => onRemoveWidget(widget.id) : undefined}
             />
           ))}
         </div>

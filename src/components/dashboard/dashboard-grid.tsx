@@ -1,5 +1,7 @@
 import type { DashboardLayoutDTO, ResolvedWidget } from "@/lib/types";
+import { APP_WIDGET_KEY } from "@/lib/dashboard";
 import { cn } from "@/lib/utils";
+import { AppsCacheProvider } from "@/hooks/use-apps-cache";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ErrorState } from "@/components/ui/error-state";
 import { getWidgetComponent } from "./widget-registry";
@@ -23,7 +25,11 @@ function WidgetCard({ widget }: { widget: ResolvedWidget }) {
         <CardTitle>{widget.title}</CardTitle>
       </CardHeader>
       <CardContent>
-        {Widget ? <Widget /> : <ErrorState message={`Unknown widget: ${widget.componentKey}`} />}
+        {Widget ? (
+          <Widget widget={widget} />
+        ) : (
+          <ErrorState message={`Unknown widget: ${widget.componentKey}`} />
+        )}
       </CardContent>
     </Card>
   );
@@ -32,7 +38,13 @@ function WidgetCard({ widget }: { widget: ResolvedWidget }) {
 export function DashboardGrid({ layout }: { layout: DashboardLayoutDTO }) {
   const sections = [...layout.sections].sort((a, b) => a.order - b.order);
 
-  return (
+  // App widgets read from a shared apps cache. Mount the provider only when one
+  // is actually visible so app-widget-free dashboards make no extra requests.
+  const hasAppWidget = sections.some((s) =>
+    s.widgets.some((w) => !w.hidden && w.widgetKey === APP_WIDGET_KEY),
+  );
+
+  const content = (
     <div className="space-y-6">
       {sections.map((section) => {
         // Hidden widgets stay in the document (restorable) but never render here.
@@ -56,4 +68,6 @@ export function DashboardGrid({ layout }: { layout: DashboardLayoutDTO }) {
       })}
     </div>
   );
+
+  return hasAppWidget ? <AppsCacheProvider>{content}</AppsCacheProvider> : content;
 }

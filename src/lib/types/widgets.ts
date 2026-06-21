@@ -61,6 +61,8 @@ export interface WidgetCatalogEntry {
   title: string;
   defaultSize: WidgetSizeToken;
   description?: string;
+  /** Template the user instantiates (e.g. app widgets); never auto-placed. */
+  instanceable: boolean;
 }
 
 // --- Templates (data-model only; no picker UI in v0.2.2) ----------------------
@@ -92,6 +94,8 @@ export interface ResolvedWidget {
   hidden: boolean;
   order: number;
   config: Record<string, unknown>;
+  /** True for user-added instances (e.g. app widgets) — removable in the editor. */
+  instanceable: boolean;
 }
 
 export interface ResolvedSection {
