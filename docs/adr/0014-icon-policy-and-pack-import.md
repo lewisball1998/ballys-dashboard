@@ -55,9 +55,11 @@ not own the depicted mark. Therefore:
   logo library in its distributed artifact is the risky act. Brand icons are
   **user-provided only** (existing custom upload today; future import below).
 
-### Future icon-pack import (NOT implemented in v0.2.7 — design of record)
-A later phase may add an **opt-in, user-driven** icon-pack import, treated as
-untrusted user input:
+### Future icon-pack import (design of record — realised in v0.2.8)
+> **Update:** this section was implemented in v0.2.8. See
+> [ADR 0015](0015-user-icon-pack-import.md) for the as-built architecture.
+
+An **opt-in, user-driven** icon-pack import, treated as untrusted user input:
 - **Grammar:** add `pack:<packId>/<key>` (and `?v=<variant>`) alongside the
   existing `builtin:`/`custom:`/URL refs; falls through `parseIconRef` safely
   (back-compatible). Pack icons resolve to `mode:"img"` only (never mask).

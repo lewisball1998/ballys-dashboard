@@ -18,4 +18,5 @@ Lightweight ADRs (one decision per file). Status is one of
 | [0011](0011-dashboard-layout-customisation.md) | Dashboard layout customisation | Accepted |
 | [0012](0012-individual-app-widgets.md) | Individual app dashboard widgets | Accepted |
 | [0013](0013-app-icon-library.md) | App icon library & custom icons | Accepted |
-| [0014](0014-icon-policy-and-pack-import.md) | Icon coverage policy & future icon-pack import | Accepted |
+| [0014](0014-icon-policy-and-pack-import.md) | Icon coverage policy & future icon-pack import | Accepted (import design realised by 0015) |
+| [0015](0015-user-icon-pack-import.md) | User icon-pack import (as built) | Accepted |

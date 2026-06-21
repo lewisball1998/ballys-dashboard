@@ -2,6 +2,61 @@
 
 All notable changes to Bally's Dashboard are documented here.
 
+## 0.2.8 — User Icon Pack Import
+
+Opt-in, user-driven icon-pack import. Users upload a **local `.zip`** pack
+(`manifest.json` + PNG/WebP assets), select pack icons in the picker through a new
+**Packs** tab, and delete imported packs. Imported packs are treated as untrusted
+input throughout. No bundled third-party packs, no brand logos in the repo, no
+remote/URL importing, and SVG stays rejected. One additive migration; no
+apps/`custom_icons`, Docker/deployment, or auth changes. See
+`docs/adr/0015-user-icon-pack-import.md`.
+
+### Added
+- **`pack:<packId>/<iconKey>` icon reference** (plus optional `?v=<variant>`),
+  parsed additively in `parseIconRef` alongside `builtin:`/`custom:`/URL refs and
+  resolved to `mode:"img"` only (never a CSS mask). Invalid slugs or a
+  missing/deleted pack/icon degrade to the initials fallback; a requested but
+  absent variant falls back to the base icon.
+- **Pack import pipeline** (`POST /api/icons/packs`, multipart `.zip`): zip-size
+  cap (5 MB) before parsing; central-directory scan bounding entry count and
+  rejecting symlinks/special files (and the zip64 entry-count sentinel); a
+  `manifest.json` + `assets/`-only path allowlist; per-entry and total **declared**
+  uncompressed caps (zip-bomb guard) plus per-asset **actual**-byte re-validation;
+  magic-byte sniffing (PNG/WebP only — SVG/GIF/JPEG/ICO/empty/malformed rejected);
+  512 KB/asset, 16 MB/pack; sha256 dedup; strict zod manifest schema (slug pack id
+  / icon keys, unique keys, `assets/`-rooted safe file paths, http(s)-only
+  display-only homepage). Imports are **atomic** — staged then committed; any
+  failure persists nothing and cleans up staged files. Duplicate pack id → `409`.
+- **API:** `GET /api/icons/packs` (list), `POST /api/icons/packs` (import),
+  `DELETE /api/icons/packs/[packId]` (delete), and
+  `GET /api/icons/packs/[packId]/[iconKey]/raw` (+ optional `?v=`) serving bytes by
+  `(packId, key[, variant])` with the v0.2.6 safe headers (`nosniff`, inline,
+  immutable). All wrapped in `protectedRoute` (auth + same-origin CSRF).
+- **Packs tab** in the icon picker: import a `.zip`, browse imported packs grouped
+  by pack with name/version/author/license and a display-only homepage link
+  (`rel="noopener noreferrer"`, never fetched), select pack icons, and delete a
+  pack. Existing **Library / Custom / URL / None** flows are unchanged.
+- **`fflate`** (MIT, zero-dependency) for ZIP reading.
+- Storage on the existing data volume under `<ICONS_DIR>/packs/<packId>/`, assets
+  named by sha256; metadata in two new tables.
+
+### Database
+- One additive migration (`0004`) creating **`icon_packs`** and
+  **`icon_pack_icons`** (FK `ON DELETE cascade`, unique `(pack_id, key, variant)`,
+  indexes on `(pack_id, key)` and `sha256`). No change to `apps` or `custom_icons`.
+
+### Notes
+- No Docker/deployment or auth change. No third-party icon packs or brand logos
+  bundled; no remote URL importing; SVG import remains rejected (PNG/WebP only).
+  Deleting a pack does not rewrite app records — apps referencing a removed pack
+  degrade to initials. Icon selection is **manual** (one at a time from the Packs
+  tab). Deferred to later phases: **bulk icon-to-app matching** (planned as
+  **v0.2.9 — Icon Pack App Matching**: a post-import review UI that *suggests*
+  app↔icon matches and bulk-applies only user-confirmed selections — never
+  auto-applied), pack-driven auto-suggestion (manifest `aliases`), and a pack
+  replace/upgrade flow (re-import is delete-first today).
+
 ## 0.2.7 — Icon Alias Expansion & Generic Icon Set
 
 Much broader icon auto-suggestion for common self-hosted apps, built entirely on
