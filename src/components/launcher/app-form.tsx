@@ -7,6 +7,7 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { createApp, updateApp } from "@/hooks/launcher-api";
+import { IconPicker } from "./icon-picker";
 import {
   apiFieldErrors,
   validateAppForm,
@@ -116,10 +117,8 @@ export function AppForm({ editingId, initial, categories, onClose, onSaved }: Ap
             </Select>
           </div>
           <div>
-            <label className="text-sm font-medium" htmlFor="app-icon">
-              Icon URL (or value)
-            </label>
-            <Input id="app-icon" value={values.icon} onChange={(e) => set("icon", e.target.value)} />
+            <span className="text-sm font-medium">Icon</span>
+            <IconPicker value={values.icon} name={values.name} onChange={(v) => set("icon", v)} />
             <FieldError messages={errors.icon} />
           </div>
           <div>

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { AppDTO } from "@/lib/types";
 import { fetchApps } from "@/hooks/launcher-api";
+import { AppIcon } from "@/components/launcher/app-icon";
 import { healthLabel, healthTone } from "@/components/launcher/launcher-logic";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -53,14 +54,7 @@ export function FavouriteAppsWidget() {
           key={app.id}
           className="flex items-center gap-2.5 rounded-lg border border-border bg-surface-2/30 px-2.5 py-2"
         >
-          {app.icon ? (
-            // eslint-disable-next-line @next/next/no-img-element -- arbitrary user icon URL; next/image would require remote config
-            <img src={app.icon} alt="" className="h-7 w-7 shrink-0 rounded-md object-cover" />
-          ) : (
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-foreground/10 text-xs font-semibold text-foreground/80">
-              {app.name.charAt(0).toUpperCase()}
-            </span>
-          )}
+          <AppIcon icon={app.icon} name={app.name} className="h-7 w-7 text-xs" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-foreground">{app.name}</p>
             {app.healthEnabled ? (

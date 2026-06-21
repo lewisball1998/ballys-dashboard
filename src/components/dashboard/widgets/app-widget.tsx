@@ -4,6 +4,7 @@ import type { ResolvedWidget } from "@/lib/types";
 import { readAppId } from "@/lib/dashboard";
 import { cn } from "@/lib/utils";
 import { useAppsCache } from "@/hooks/use-apps-cache";
+import { AppIcon } from "@/components/launcher/app-icon";
 import { healthLabel, healthTone } from "@/components/launcher/launcher-logic";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -50,14 +51,7 @@ export function AppWidget({ widget }: { widget: ResolvedWidget }) {
 
   return (
     <div className={cn("flex items-center gap-3", retired && "opacity-60")}>
-      {app.icon ? (
-        // eslint-disable-next-line @next/next/no-img-element -- arbitrary user icon URL; next/image would require remote config
-        <img src={app.icon} alt="" className="h-10 w-10 shrink-0 rounded-md object-cover" />
-      ) : (
-        <span className="text-foreground/80 bg-foreground/10 flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-sm font-semibold">
-          {app.name.charAt(0).toUpperCase()}
-        </span>
-      )}
+      <AppIcon icon={app.icon} name={app.name} className="h-10 w-10 text-sm" />
 
       <div className="min-w-0 flex-1">
         {app.description ? <p className="text-muted truncate text-xs">{app.description}</p> : null}

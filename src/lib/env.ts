@@ -8,6 +8,10 @@ const envSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   PORT: z.coerce.number().int().positive().default(3000),
   DATABASE_PATH: z.string().min(1).default("./data/ballys.db"),
+  // Where uploaded custom icon files are stored (v0.2.6). Optional: when unset it
+  // derives from DATABASE_PATH (an `icons/` dir next to the SQLite file) so it
+  // lives on the same mounted data volume. Files are served by opaque id only.
+  ICONS_DIR: z.string().min(1).optional(),
   // Optional in v0.1 (no module secrets yet); required once modules store
   // credentials in v0.2. Validated lazily where it is actually used.
   APP_ENCRYPTION_KEY: z.string().optional(),

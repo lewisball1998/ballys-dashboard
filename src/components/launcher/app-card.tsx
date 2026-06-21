@@ -12,6 +12,7 @@ import {
   lifecycleAction,
   setFavourite,
 } from "@/hooks/launcher-api";
+import { AppIcon } from "./app-icon";
 import { healthLabel, healthTone } from "./launcher-logic";
 
 interface AppCardProps {
@@ -41,14 +42,7 @@ export function AppCard({ app, isFirst, isLast, onEdit, onMove, onMutate }: AppC
   return (
     <Card className="flex h-full flex-col gap-3 transition-colors hover:border-foreground/20">
       <div className="flex items-start gap-3">
-        {app.icon ? (
-          // eslint-disable-next-line @next/next/no-img-element -- arbitrary user icon URL; next/image would require remote config
-          <img src={app.icon} alt="" className="h-9 w-9 shrink-0 rounded-md object-cover" />
-        ) : (
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-foreground/10 text-sm font-semibold text-foreground/80">
-            {app.name.charAt(0).toUpperCase()}
-          </span>
-        )}
+        <AppIcon icon={app.icon} name={app.name} className="h-9 w-9 text-sm" />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <p className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">{app.name}</p>
