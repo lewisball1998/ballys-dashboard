@@ -1,4 +1,4 @@
-import { DashboardGrid } from "@/components/dashboard/dashboard-grid";
+import { DashboardHome } from "@/components/dashboard/dashboard-home";
 import { PageHeader } from "@/components/layout/page-header";
 import { getResolvedLayout } from "@/server/services/dashboard-layout";
 
@@ -10,7 +10,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <PageHeader title="Dashboard" description="System status and service overview at a glance." />
-      <DashboardGrid layout={layout} />
+      <DashboardHome initialLayout={layout} />
     </div>
   );
 }

@@ -27,7 +27,7 @@ export const DEFAULTS = {
   authEnabledByDefault: true,
 } as const;
 
-export const APP_VERSION = "0.2.2";
+export const APP_VERSION = "0.2.3";
 
 /** Setting keys used across the app (single source of truth for the kv store). */
 export const SETTING_KEYS = {

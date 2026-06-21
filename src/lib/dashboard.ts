@@ -33,3 +33,11 @@ export const SIZE_TOKEN_COLUMNS: Record<WidgetSizeToken, number> = {
 export function sizeTokenToColumns(token: WidgetSizeToken): number {
   return SIZE_TOKEN_COLUMNS[token] ?? SIZE_TOKEN_COLUMNS.medium;
 }
+
+/** Human-readable labels for the width tokens (UI only; the token stays the contract). */
+export const SIZE_TOKEN_LABELS: Record<WidgetSizeToken, string> = {
+  small: "Small",
+  medium: "Medium",
+  wide: "Wide",
+  full: "Full",
+};
