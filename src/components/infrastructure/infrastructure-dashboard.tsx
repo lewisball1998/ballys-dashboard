@@ -9,6 +9,7 @@ import { SourceStatus } from "./source-status";
 import { InfrastructureAlerts } from "./infrastructure-alerts";
 import { StorageOverview } from "./storage-overview";
 import { DriveInventory } from "./drive-inventory";
+import { NasStorage } from "./nas-storage";
 import {
   CpuCard,
   GpuCard,
@@ -113,6 +114,15 @@ export function InfrastructureDashboard() {
       <Section title="Drives" description="Drive inventory with temperature and SMART status where available.">
         <DriveInventory drives={data.storage.drives} />
       </Section>
+
+      {data.storage.nas ? (
+        <Section
+          title="NAS storage"
+          description="Read-only TrueNAS pools, datasets and disks — separate from app/container storage."
+        >
+          <NasStorage nas={data.storage.nas} />
+        </Section>
+      ) : null}
     </div>
   );
 }

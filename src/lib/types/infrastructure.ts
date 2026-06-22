@@ -140,10 +140,53 @@ export interface StoragePoolDTO {
   isAppData: boolean;
 }
 
+/** A NAS storage pool (e.g. a ZFS pool reported by TrueNAS). Distinct from the
+ * local/container filesystems in {@link StoragePoolDTO} so NAS and app/container
+ * storage are never conflated. */
+export interface NasPoolDTO {
+  name: string;
+  severity: HealthSeverity;
+  /** Pool status label from the NAS, e.g. "ONLINE" / "DEGRADED" — null if unknown. */
+  health: string | null;
+  usedBytes: number | null;
+  freeBytes: number | null;
+  totalBytes: number | null;
+  usagePercent: number | null;
+}
+
+/** A NAS dataset/share, surfaced by safe label only (never a host mountpoint). */
+export interface NasDatasetDTO {
+  /** Safe dataset label/path, e.g. "tank/media" (pool/child) — never "/mnt/...". */
+  name: string;
+  usedBytes: number | null;
+  availableBytes: number | null;
+  totalBytes: number | null;
+  usagePercent: number | null;
+}
+
+/** Optional NAS (TrueNAS) telemetry block. Present only when a NAS source is
+ * configured; `null` keeps the page identical to a no-NAS deployment. Missing
+ * sub-data is a calm `unavailable`/empty state, never a fault. */
+export interface NasTelemetryDTO {
+  /** Connection state of the NAS provider (mirrors the matching source entry). */
+  status: TelemetrySourceStatus;
+  severity: HealthSeverity;
+  pools: NasPoolDTO[];
+  datasets: NasDatasetDTO[];
+  /** NAS disk inventory — reuses {@link DriveDTO}; SMART/temperature populated
+   * from the NAS where available, redacted serials only. */
+  disks: DriveDTO[];
+  /** ISO timestamp of the last successful NAS read, or null. */
+  lastRefresh: string | null;
+}
+
 export interface StorageTelemetryDTO {
   severity: HealthSeverity;
   pools: StoragePoolDTO[];
   drives: DriveDTO[];
+  /** NAS pools/datasets/disks where a TrueNAS source is configured; `null` when
+   * not configured so app/container storage stays clearly separate. */
+  nas: NasTelemetryDTO | null;
 }
 
 export interface UptimeTelemetryDTO {

@@ -11,6 +11,7 @@ import type {
   InfrastructureAlertDTO,
   InfrastructureTelemetryDTO,
   MemoryTelemetryDTO,
+  NasTelemetryDTO,
   NetworkInterfaceDTO,
   NetworkTelemetryDTO,
   StoragePoolDTO,
@@ -25,6 +26,7 @@ import { redactSerial, sanitiseLabel } from "./redact";
 import { pickAppDataMount, readMeminfo, readMounts, readNetDev } from "./proc";
 import { readCpuTemperatureC, readDrives, readGpus } from "./sysfs";
 import { collectContainerStats, type ContainerStat } from "./container-stats";
+import { collectTrueNasTelemetry } from "./truenas/provider";
 
 /**
  * Infrastructure telemetry orchestrator (v0.3.0, SERVER-ONLY). Reads only
@@ -174,7 +176,7 @@ export async function collectInfrastructureTelemetry(): Promise<InfrastructureTe
   const generatedAt = new Date().toISOString();
   const { thresholds } = getSettings();
 
-  const [cpuTempC, drives, gpus, pools, network, containerStats, mem] = await Promise.all([
+  const [cpuTempC, drives, gpus, pools, network, containerStats, mem, truenas] = await Promise.all([
     readCpuTemperatureC(),
     buildDrives(),
     readGpus(),
@@ -182,6 +184,7 @@ export async function collectInfrastructureTelemetry(): Promise<InfrastructureTe
     buildNetwork(),
     collectContainerStats(),
     readMeminfo(),
+    collectTrueNasTelemetry(),
   ]);
   const latest = getLatestMetrics();
 
@@ -254,14 +257,29 @@ export async function collectInfrastructureTelemetry(): Promise<InfrastructureTe
     })),
   };
 
-  // --- Storage ---
+  // --- Storage (local filesystems/drives + optional NAS, kept separate) ---
+  // NAS data is only attached when TrueNAS is configured; otherwise `nas` stays
+  // null and the page renders exactly as it did without a NAS source.
+  const nas: NasTelemetryDTO | null =
+    truenas.status === "not_configured"
+      ? null
+      : {
+          status: truenas.status,
+          severity: truenas.severity,
+          pools: truenas.pools,
+          datasets: truenas.datasets,
+          disks: truenas.disks,
+          lastRefresh: truenas.lastRefresh,
+        };
   const storage: StorageTelemetryDTO = {
     severity: worstSeverity([
       ...pools.map((p) => p.severity),
       ...drives.map((d) => d.temperatureSeverity),
+      ...(nas ? [nas.severity] : []),
     ]),
     pools,
     drives,
+    nas,
   };
 
   // --- Uptime ---
@@ -294,9 +312,9 @@ export async function collectInfrastructureTelemetry(): Promise<InfrastructureTe
     {
       id: "truenas",
       label: "TrueNAS",
-      status: "not_configured",
-      detail: "Not configured — NAS pool & SMART telemetry is planned for a future release.",
-      lastRefresh: null,
+      status: truenas.status,
+      detail: truenas.detail,
+      lastRefresh: truenas.lastRefresh,
     },
   ];
 
@@ -373,6 +391,39 @@ function buildAlerts(
         detail: `${g.name} at ${g.temperatureC}°C.`,
         source: "gpu",
       });
+    }
+  }
+  if (storage.nas) {
+    for (const p of storage.nas.pools) {
+      if (isAlertable(p.severity)) {
+        alerts.push({
+          id: `nas-pool-${p.name}`,
+          severity: p.severity,
+          title: `NAS pool ${p.severity === "critical" ? "faulted" : "degraded"}: ${p.name}`,
+          detail: `${p.name}${p.health ? ` reports ${p.health}` : ""}.`,
+          source: "nas",
+        });
+      }
+    }
+    for (const d of storage.nas.disks) {
+      if (d.smartStatus === "failing") {
+        alerts.push({
+          id: `nas-smart-${d.name}`,
+          severity: "critical",
+          title: `NAS drive SMART failing: ${d.name}`,
+          detail: `${d.name} reports a failing SMART status.`,
+          source: "nas",
+        });
+      }
+      if (isAlertable(d.temperatureSeverity)) {
+        alerts.push({
+          id: `nas-drive-${d.name}`,
+          severity: d.temperatureSeverity,
+          title: `NAS drive running hot: ${d.name}`,
+          detail: `${d.name} at ${d.temperatureC}°C.`,
+          source: "nas",
+        });
+      }
     }
   }
   return alerts.sort((a, b) => (a.severity === b.severity ? 0 : a.severity === "critical" ? -1 : 1));

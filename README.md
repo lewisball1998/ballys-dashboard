@@ -153,6 +153,27 @@ thresholds, auth on/off) is managed **in the UI** and stored in SQLite. No
 config-file editing is required for normal use. Environment variables only cover
 deployment-level concerns — see [`.env.example`](.env.example).
 
+### Optional: TrueNAS telemetry (v0.3.2)
+
+The Infrastructure page can show **read-only** TrueNAS data — NAS pools, datasets,
+disk inventory, pool health, drive temperatures and SMART-style health (where
+available, with masked disk serials only). It performs **no** write actions: no
+pool/dataset management, no SMART test or scrub triggering, no destructive
+operations. It is fully optional — when unconfigured, the page works exactly as
+before and TrueNAS shows as *not configured*.
+
+Set two environment variables (placeholders only — never commit a real key):
+
+```bash
+TRUENAS_URL=https://your-truenas-host:443
+TRUENAS_API_KEY=replace-with-your-key
+```
+
+The API key is kept server-side only (never sent to the browser or logged). Use a
+read-only / least-privilege key. See **[`docs/truenas-telemetry.md`](docs/truenas-telemetry.md)**
+for how to create the key, the optional `TRUENAS_API_PATH` / `TRUENAS_ALLOW_INSECURE`
+settings (self-signed certs), supported TrueNAS versions, and troubleshooting.
+
 ## v0.1 deferrals
 
 The following are intentionally **not** in v0.1 (see the roadmap):

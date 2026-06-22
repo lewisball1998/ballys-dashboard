@@ -25,6 +25,22 @@ const envSchema = z.object({
   // Docker page degrades to a clear "not configured" state. Never sent to the
   // client.
   DOCKER_SOCKET_PATH: z.string().min(1).default("/var/run/docker.sock"),
+  // TrueNAS read-only telemetry provider (v0.3.2). OPTIONAL + server-side only:
+  // when URL or key is absent the Infrastructure page reports TrueNAS as "not
+  // configured" and renders exactly as before. The URL is a plain string (NOT
+  // z.url()) so a malformed value degrades to a calm "unavailable" state rather
+  // than crashing process boot. The key is NEVER sent to the client or logged.
+  // See docs/truenas-telemetry.md.
+  TRUENAS_URL: z.string().min(1).optional(),
+  TRUENAS_API_KEY: z.string().min(1).optional(),
+  // JSON-RPC 2.0 WebSocket path on the TrueNAS host. Default targets the current
+  // TrueNAS SCALE middleware API; older REST-only routes are intentionally avoided.
+  TRUENAS_API_PATH: z.string().min(1).default("/api/current"),
+  // TLS verification escape hatch for self-signed / trusted-local TrueNAS only.
+  // "true" skips certificate verification for the TrueNAS connection ALONE — it
+  // never affects global TLS and never uses NODE_TLS_REJECT_UNAUTHORIZED. Unset
+  // is treated as false. Keep false when TrueNAS has a valid/proxied cert.
+  TRUENAS_ALLOW_INSECURE: z.string().optional(),
 });
 
 export const env = envSchema.parse(process.env);
