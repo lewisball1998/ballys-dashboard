@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { parseMeminfo, parseNetDev, parseMounts } from "@/server/telemetry/proc";
+import {
+  parseMeminfo,
+  parseNetDev,
+  parseMounts,
+  isInternalMount,
+  pickAppDataMount,
+} from "@/server/telemetry/proc";
 
 const KB = 1024;
 
@@ -69,5 +75,56 @@ describe("parseMounts", () => {
   it("decodes octal-escaped spaces in mountpoints", () => {
     const rows = parseMounts("/dev/sdc1 /mnt/my\\040disk ext4 rw 0 0");
     expect(rows[0]!.mountpoint).toBe("/mnt/my disk");
+  });
+
+  it("drops container/internal bind-mounts that carry a real fstype", () => {
+    // resolv.conf / hosts / hostname are bind-mounted from the host and inherit a
+    // real fstype, so only a mountpoint filter can exclude them.
+    const sample = [
+      "/dev/sda1 / ext4 rw 0 0",
+      "/dev/sda1 /etc/resolv.conf ext4 rw 0 0",
+      "/dev/sda1 /etc/hosts ext4 rw 0 0",
+      "/dev/sda1 /etc/hostname ext4 rw 0 0",
+      "/dev/sda1 /run/secrets ext4 rw 0 0",
+      "/dev/sdb1 /app/data ext4 rw 0 0",
+    ].join("\n");
+    const rows = parseMounts(sample);
+    expect(rows.map((r) => r.mountpoint)).toEqual(["/", "/app/data"]);
+  });
+});
+
+describe("isInternalMount", () => {
+  it("flags config-file bind-mounts and runtime/pseudo paths", () => {
+    expect(isInternalMount("/etc/resolv.conf")).toBe(true);
+    expect(isInternalMount("/etc/hosts")).toBe(true);
+    expect(isInternalMount("/etc/hostname")).toBe(true);
+    expect(isInternalMount("/proc/bus")).toBe(true);
+    expect(isInternalMount("/sys/fs/cgroup")).toBe(true);
+    expect(isInternalMount("/dev/shm")).toBe(true);
+    expect(isInternalMount("/run/lock")).toBe(true);
+    expect(isInternalMount("/var/run/docker.sock")).toBe(true);
+  });
+
+  it("does not flag real storage mountpoints", () => {
+    expect(isInternalMount("/")).toBe(false);
+    expect(isInternalMount("/mnt/tank")).toBe(false);
+    expect(isInternalMount("/app/data")).toBe(false);
+  });
+});
+
+describe("pickAppDataMount", () => {
+  it("picks the most specific non-root mount holding the data dir", () => {
+    expect(pickAppDataMount(["/", "/app/data"], "/app/data")).toBe("/app/data");
+    expect(pickAppDataMount(["/", "/app", "/app/data"], "/app/data/sub")).toBe("/app/data");
+  });
+
+  it("returns null when the data dir is only on the root filesystem", () => {
+    expect(pickAppDataMount(["/"], "/app/data")).toBeNull();
+    expect(pickAppDataMount(["/", "/mnt/tank"], "/app/data")).toBeNull();
+  });
+
+  it("does not match on a shared path prefix that is not a mount boundary", () => {
+    // "/app" must not match "/applications" — prefix needs a separator.
+    expect(pickAppDataMount(["/", "/app"], "/applications/data")).toBeNull();
   });
 });

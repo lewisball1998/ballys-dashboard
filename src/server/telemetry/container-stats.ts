@@ -14,6 +14,12 @@ import { getDockerContainers } from "@/server/services/docker";
 const MAX_CONTAINERS = 20;
 const CONCURRENCY = 4;
 const STATS_TIMEOUT_MS = 3_000;
+/** Overall wall-clock budget for the whole panel. Docker's `stream=0` stats call
+ * blocks ~1–2s each (it samples a CPU delta window), so a host with many running
+ * containers could otherwise hold the Infrastructure page for ~9s. Past the
+ * budget we stop starting new reads and return whatever arrived — a calm partial
+ * result for a best-effort panel, never a page stall. */
+const STATS_BUDGET_MS = 2_500;
 
 export interface ContainerStat {
   name: string;
@@ -95,8 +101,11 @@ export async function collectContainerStats(): Promise<ContainerStatsResult> {
 
   const out: ContainerStat[] = [];
   let cursor = 0;
+  const startedAt = Date.now();
   async function worker() {
-    while (cursor < running.length) {
+    // Stop pulling new containers once the budget is spent; an already in-flight
+    // read still has its own per-request timeout, so the worst case is bounded.
+    while (cursor < running.length && Date.now() - startedAt < STATS_BUDGET_MS) {
       const c = running[cursor++];
       if (!c) continue;
       const stat = await fetchOne(c.id, c.name);

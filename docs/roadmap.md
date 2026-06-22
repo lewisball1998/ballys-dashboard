@@ -32,6 +32,13 @@ detail views; severity states (healthy/warning/critical/unavailable); an alerts
 summary; and explicit telemetry source status. No new external integrations,
 schema changes, or shell execution. See `docs/adr/0017`.
 
+v0.3.1 is a display-only polish pass: invalid CPU clock / metric values render as
+`—` (not `0 MHz`), container/internal mounts are filtered out of storage, the app
+data volume is labelled as app storage (not a NAS pool), first load shows a calm
+skeleton, and telemetry-source copy is clearer. A read-only TrueNAS provider for
+real NAS pool/dataset/SMART health remains future work. See
+`docs/plans/v0.3.1-infrastructure-polish.md`.
+
 ## v0.3.x — Notes, reminders & polish
 Notes; manual + domain/cert/backup reminders; widget drag/resize layout;
 import/export; mobile responsiveness; PWA prep.

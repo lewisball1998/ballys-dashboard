@@ -2,6 +2,43 @@
 
 All notable changes to Bally's Dashboard are documented here.
 
+## 0.3.1 — Infrastructure Polish & Runtime Display Fixes
+
+A small, display-focused polish pass over the v0.3.0 Infrastructure page. No new
+telemetry providers, no backend architecture change, no schema/migration, no new
+dependency, no Docker/deployment or auth change. Telemetry is still collected
+server-side from read-only local sources, and all redaction rules are unchanged.
+
+### Fixed
+- **CPU clock no longer shows a bogus `0 MHz`.** A host that doesn't expose its
+  real frequency reports `0`; this (and any non-finite value) is normalised to
+  `null` server-side and rendered as `—`. `formatClockMhz` now guards invalid
+  input directly.
+- **Invalid/unknown metric values render cleanly as `—`.** The hardware-card
+  formatter treats `NaN`/`Infinity` as unavailable (while keeping a real `0`,
+  e.g. `0%` usage).
+- **Storage no longer lists container/internal mounts as filesystems.**
+  Single-file bind-mounts that inherit a real fstype (`/etc/resolv.conf`,
+  `/etc/hosts`, `/etc/hostname`) and runtime/pseudo paths (`/proc/*`, `/sys/*`,
+  `/dev/*`, `/run/*`, `/var/run/*`) are filtered out by mountpoint.
+
+### Changed
+- **The app/container data volume is labelled as such.** The filesystem holding
+  the app's own data volume is badged **App data** and described as app/container
+  storage, so it is never mistaken for a NAS pool.
+- **Calmer loading.** First load shows a layout-matching skeleton instead of a
+  bare spinner, so the page reads as loading rather than broken.
+- **Bounded per-app stats.** Container stats now have an overall wall-clock
+  budget, so a host with many running containers returns a calm partial result
+  instead of holding the page for ~9s.
+- **Clearer telemetry-source copy.** Local/Docker sources read as **Connected**;
+  TrueNAS reads as a calm **not configured — planned**, and the Storage section
+  notes that NAS pool/SMART health appears once a NAS source is connected.
+
+### Added
+- Tests: `format` (`formatClockMhz`), plus `parseMounts` internal-mount
+  filtering and the `isInternalMount` / `pickAppDataMount` helpers.
+
 ## 0.3.0 — Infrastructure & Hardware Monitoring Expansion
 
 The **Infrastructure** page grows from a single container-visible system widget
