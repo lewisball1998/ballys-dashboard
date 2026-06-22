@@ -174,6 +174,73 @@ describe("normaliseDatasets", () => {
   });
 });
 
+describe("dataset dedupe — live TrueNAS shape (top-level + nested duplicates)", () => {
+  // Reproduces the live pool.dataset.query shape from QA: each dataset appears
+  // BOTH nested under its parent's `children` AND repeated at the top level, so a
+  // naive flatten counts "tank/media" 2x and "tank/media/movies" 3x.
+  const liveShape: RawDataset[] = [
+    {
+      id: "tank",
+      name: "tank",
+      used: { parsed: 100 },
+      available: { parsed: 300 },
+      children: [
+        {
+          id: "tank/media",
+          name: "tank/media",
+          used: { parsed: 60 },
+          available: { parsed: 40 },
+          children: [
+            { id: "tank/media/movies", name: "tank/media/movies", used: { parsed: 30 }, available: { parsed: 40 } },
+          ],
+        },
+      ],
+    },
+    // same dataset repeated at the top level, again carrying its own children
+    {
+      id: "tank/media",
+      name: "tank/media",
+      used: { parsed: 60 },
+      available: { parsed: 40 },
+      children: [
+        { id: "tank/media/movies", name: "tank/media/movies", used: { parsed: 30 }, available: { parsed: 40 } },
+      ],
+    },
+    // and the leaf repeated at the top level too
+    { id: "tank/media/movies", name: "tank/media/movies", used: { parsed: 30 }, available: { parsed: 40 } },
+  ];
+
+  it("flattenDatasets returns each dataset exactly once (deduped by id)", () => {
+    const flat = flattenDatasets(liveShape);
+    const ids = flat.map((d) => d.id);
+    expect(ids).toEqual(["tank", "tank/media", "tank/media/movies"]);
+    expect(new Set(ids).size).toBe(ids.length); // no duplicates
+  });
+
+  it("normaliseDatasets yields unique datasets only (root skipped)", () => {
+    const out = normaliseDatasets(liveShape);
+    const names = out.map((d) => d.name);
+    expect(new Set(names).size).toBe(names.length);
+    expect(names).toEqual(["tank/media", "tank/media/movies"]);
+    expect(out[0]).toMatchObject({ name: "tank/media", usedBytes: 60, usagePercent: 60 });
+  });
+
+  it("falls back to name when id is absent, and preserves a genuinely nested-only child", () => {
+    const noIds: RawDataset[] = [
+      {
+        name: "vol",
+        used: { parsed: 10 },
+        available: { parsed: 90 },
+        children: [{ name: "vol/data", used: { parsed: 5 }, available: { parsed: 5 } }],
+      },
+      // duplicate of "vol" by name (no id); its nested child is unique
+      { name: "vol", used: { parsed: 10 }, available: { parsed: 90 } },
+    ];
+    const flat = flattenDatasets(noIds);
+    expect(flat.map((d) => d.name)).toEqual(["vol", "vol/data"]);
+  });
+});
+
 describe("indexSmartResults / normaliseSmartTime", () => {
   it("takes the latest test status + time per disk", () => {
     const results: RawSmartResult[] = [

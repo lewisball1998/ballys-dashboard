@@ -106,13 +106,34 @@ export function indexRootDatasets(
   return map;
 }
 
-/** Flatten TrueNAS's nested `children` dataset tree into a single list. */
+/**
+ * Flatten TrueNAS's nested `children` dataset tree into a single list, with each
+ * dataset appearing exactly once.
+ *
+ * `pool.dataset.query` can return the same dataset BOTH at the top level AND
+ * nested under a parent's `children`, so a naive walk counts each dataset 2-3+
+ * times (confirmed in live QA). We dedupe by a stable key — the dataset `id`
+ * where present, falling back to its `name`/path — keeping the first occurrence
+ * in traversal order. Children of an already-seen node are still walked so a
+ * dataset that only appears nested under a duplicate parent is not lost (it is
+ * deduped by the same key). Entries with neither id nor name (which we could not
+ * identify anyway) are passed through unchanged.
+ */
 export function flattenDatasets(datasets: RawDataset[]): RawDataset[] {
   const out: RawDataset[] = [];
+  const seen = new Set<string>();
   const walk = (list: RawDataset[] | null | undefined) => {
     if (!Array.isArray(list)) return;
     for (const ds of list) {
       if (!ds || typeof ds !== "object") continue;
+      const key = asStringOrNull(ds.id) ?? asStringOrNull(ds.name);
+      if (key !== null) {
+        if (seen.has(key)) {
+          walk(ds.children); // dedupe self, but still descend for unseen children
+          continue;
+        }
+        seen.add(key);
+      }
       out.push(ds);
       walk(ds.children);
     }
