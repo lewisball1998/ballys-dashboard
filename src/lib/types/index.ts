@@ -13,6 +13,7 @@ export * from "./icons";
 export * from "./health";
 export * from "./widgets";
 export * from "./metrics";
+export * from "./infrastructure";
 export * from "./docker";
 export * from "./docker-import";
 export * from "./notifications";

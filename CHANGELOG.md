@@ -2,6 +2,44 @@
 
 All notable changes to Bally's Dashboard are documented here.
 
+## 0.3.0 — Infrastructure & Hardware Monitoring Expansion
+
+The **Infrastructure** page grows from a single container-visible system widget
+into an infrastructure & hardware monitoring centre: telemetry source status,
+an alerts summary, storage overview, drive inventory (temperature / SMART),
+and expandable hardware cards for CPU, memory, GPU, network, storage and uptime.
+All telemetry is collected **server-side from read-only local sources** (`/proc`,
+`/sys`) plus the already-opt-in Docker socket, normalised and **redacted** before
+it reaches the client. Missing data degrades to a calm **unavailable** state —
+never a fault. No DB change (no migration), no new dependency, no Docker/deployment
+or auth change, no new external integration, no shell execution. The home
+dashboard is unchanged. See `docs/adr/0017-infrastructure-hardware-telemetry.md`.
+
+### Added
+- **`GET /api/infrastructure`** (`protectedRoute`, `force-dynamic`): one
+  normalised, redacted `InfrastructureTelemetryDTO` with per-source status,
+  alerts, and CPU / memory / GPU / network / storage / uptime telemetry.
+- **Server telemetry abstraction** (`src/server/telemetry/`, server-only):
+  `proc.ts` (`/proc/meminfo`, `/proc/net/dev`, `/proc/mounts`), `sysfs.ts`
+  (drive inventory, hwmon temperatures/power, best-effort amdgpu GPU),
+  `severity.ts` + `redact.ts` (pure, unit-tested), `container-stats.ts` (bounded,
+  best-effort per-app usage via the existing Docker engine client), and
+  `service.ts` (orchestrator that never throws).
+- **Severity model** — `healthy | warning | critical | unavailable`. Temperature
+  bands **<45 / 45–54 / ≥55 °C**; capacity bands reuse the configured thresholds.
+  Unknown is `unavailable`, **never** critical without real failure evidence; only
+  warning/critical conditions raise alerts.
+- **Telemetry source status** — explicit Connected / Partial / Not configured for
+  the local system, Docker, and TrueNAS (TrueNAS is `not_configured`; pool/SMART
+  telemetry is planned for v0.4+), with last-refresh time.
+- **Reusable infrastructure UI** (`src/components/infrastructure/`): severity +
+  source badges, an expandable `MetricCard`, source-status row, alerts summary,
+  storage overview, responsive drive inventory, and the hardware cards.
+- **Redaction**: disk serials masked (`WD…4567`); models/GPU names path-stripped;
+  pools labelled by mountpoint basename only. No secrets, host paths, socket
+  details, or raw backend errors reach the client.
+- Tests: `telemetry-parsers`, `telemetry-severity`, `telemetry-redact`.
+
 ## 0.2.9 — Icon Pack App Matching
 
 After importing an icon pack, a new review screen **suggests** which pack icons

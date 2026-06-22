@@ -23,7 +23,16 @@ Docker socket (documented privileged); container list/status/uptime; safe
 start/stop/restart; Docker widgets; CSRF on actions; full secret encryption;
 environment-discovery returns to the wizard.
 
-## v0.3 — Notes, reminders & polish
+## v0.3 — Infrastructure & hardware monitoring
+v0.3.0 expands the Infrastructure page into a hardware monitoring centre:
+server-side, read-only local telemetry (`/proc`, `/sys`) + opt-in Docker
+container stats; storage overview, drive inventory (temperature / SMART where
+available), pool capacity; CPU/memory/GPU/network/storage/uptime cards with
+detail views; severity states (healthy/warning/critical/unavailable); an alerts
+summary; and explicit telemetry source status. No new external integrations,
+schema changes, or shell execution. See `docs/adr/0017`.
+
+## v0.3.x — Notes, reminders & polish
 Notes; manual + domain/cert/backup reminders; widget drag/resize layout;
 import/export; mobile responsiveness; PWA prep.
 
