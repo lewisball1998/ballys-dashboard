@@ -2,6 +2,59 @@
 
 All notable changes to Bally's Dashboard are documented here.
 
+## 0.3.2 — TrueNAS Read-only Telemetry Provider
+
+Adds an **optional, read-only** TrueNAS telemetry provider behind the existing
+v0.3.0 infrastructure telemetry abstraction. When configured it enriches the
+Infrastructure page with real NAS pool, dataset, disk, temperature and SMART-style
+health data **where available**; when it is not configured the page renders exactly
+as before. **Read-only by contract:** no write actions, pool/dataset management,
+SMART test or scrub triggering, alert acknowledgement, shell execution, or
+host-filesystem browsing. No DB change (no migration), **no new dependency**, no
+Docker/Dockerfile or auth change. See `docs/adr/0018-truenas-readonly-telemetry.md`
+and `docs/truenas-telemetry.md`.
+
+### Added
+- **TrueNAS provider** (`src/server/telemetry/truenas/`, server-only): a tiny
+  dependency-free WebSocket client over `node:tls` (`ws-client.ts`) speaking the
+  current TrueNAS SCALE **JSON-RPC 2.0** middleware API (`/api/current`), a
+  JSON-RPC `client.ts` (API-key auth + per-call timeouts), **pure** `normalise.ts`
+  (capacity parsing, pool/dataset/disk/SMART normalisation, severity mapping,
+  serial masking), and a `provider.ts` orchestrator that **never throws** and is
+  bounded by per-call timeouts plus an overall wall-clock budget.
+- **NAS storage section** on the Infrastructure page: NAS pools (health +
+  capacity), datasets (safe labels only), and a NAS disk inventory with
+  temperature / SMART where available — kept visually separate from
+  app/container storage.
+- **`storage.nas`** on `InfrastructureTelemetryDTO` (`NasTelemetryDTO` /
+  `NasPoolDTO` / `NasDatasetDTO`): `null` when TrueNAS is not configured, so
+  app/container and NAS storage never conflate.
+- **NAS alerts** for degraded/faulted pools, hot NAS drives, and failing SMART —
+  only real warning/critical conditions; missing telemetry stays `unavailable`.
+- **Env vars** `TRUENAS_URL`, `TRUENAS_API_KEY`, `TRUENAS_API_PATH`
+  (default `/api/current`), `TRUENAS_ALLOW_INSECURE` (default `false`).
+- **Docs**: `docs/truenas-telemetry.md` (setup, API-key creation, security, TLS,
+  supported versions, troubleshooting), README config section, `.env.example`
+  entries (placeholders only), and ADR 0018.
+- **Tests**: TrueNAS normalisation (capacity `{parsed}`/number, pool/dataset/disk/
+  SMART, severity), serial masking (full serials never present), and provider
+  helpers (config detection, status mapping, insecure-flag parsing, URL building).
+
+### Security
+- TLS certificates are **verified by default**. `TRUENAS_ALLOW_INSECURE=true` is
+  the only way to skip verification, scoped to the **TrueNAS connection only** —
+  it never weakens global TLS and never uses `NODE_TLS_REJECT_UNAUTHORIZED`.
+- The API key and TrueNAS URL are **server-side only** — never sent to the client
+  or logged. Full disk serials are never exposed (masked serials only). Raw
+  backend errors / stack traces / host mountpoints never reach the client.
+- A configured-but-unreachable or wrong-key TrueNAS degrades to a calm
+  `unavailable` state; the rest of the page is unaffected.
+
+### Changed
+- The `truenas` telemetry source is now driven by the real provider result
+  (Connected / Partial / Unavailable / Not configured) instead of a hard-coded
+  "planned" placeholder; the Storage section copy points to the new NAS section.
+
 ## 0.3.1 — Infrastructure Polish & Runtime Display Fixes
 
 A small, display-focused polish pass over the v0.3.0 Infrastructure page. No new

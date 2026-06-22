@@ -9,9 +9,10 @@ import { SeverityBadge, severityBarClass } from "./severity-badge";
 
 /**
  * Storage overview: one card per filesystem/pool with capacity, free space and a
- * capacity-severity bar. Pool health labels appear when a pool source provides
- * them (TrueNAS/ZFS — v0.4+); until then capacity severity stands in. The app's
- * own data volume is badged as app storage so it is never read as a NAS pool.
+ * capacity-severity bar. These are container-visible local filesystems; NAS pool
+ * health/capacity lives in the separate NAS storage section when a TrueNAS source
+ * is connected. The app's own data volume is badged as app storage so it is never
+ * read as a NAS pool.
  */
 export function StorageOverview({ pools }: { pools: StoragePoolDTO[] }) {
   if (pools.length === 0) {
@@ -78,8 +79,8 @@ export function StorageOverview({ pools }: { pools: StoragePoolDTO[] }) {
       </div>
 
       <p className="text-[11px] text-muted">
-        Showing container-visible filesystems. NAS pool &amp; SMART health appear here once a NAS
-        source (e.g. TrueNAS) is connected — planned for a future release.
+        Showing container-visible filesystems. NAS pools, datasets &amp; SMART health appear in the
+        separate NAS storage section when a TrueNAS source is connected.
       </p>
     </div>
   );

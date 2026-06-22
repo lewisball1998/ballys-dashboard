@@ -35,9 +35,18 @@ schema changes, or shell execution. See `docs/adr/0017`.
 v0.3.1 is a display-only polish pass: invalid CPU clock / metric values render as
 `—` (not `0 MHz`), container/internal mounts are filtered out of storage, the app
 data volume is labelled as app storage (not a NAS pool), first load shows a calm
-skeleton, and telemetry-source copy is clearer. A read-only TrueNAS provider for
-real NAS pool/dataset/SMART health remains future work. See
+skeleton, and telemetry-source copy is clearer. See
 `docs/plans/v0.3.1-infrastructure-polish.md`.
+
+v0.3.2 adds an **optional, read-only TrueNAS telemetry provider** behind the same
+telemetry abstraction: real NAS pool/dataset/disk capacity, pool health, drive
+temperatures and SMART-style health (where available, masked serials only), shown
+in a separate NAS storage section. It speaks the current TrueNAS SCALE JSON-RPC
+WebSocket API via a dependency-free `node:tls` client, verifies TLS by default
+(opt-in `TRUENAS_ALLOW_INSECURE` for self-signed homelab use), and stays
+**read-only** — no pool/dataset management, SMART/scrub triggers, or writes. The
+page is unchanged when TrueNAS is not configured. See
+`docs/adr/0018-truenas-readonly-telemetry.md` and `docs/truenas-telemetry.md`.
 
 ## v0.3.x — Notes, reminders & polish
 Notes; manual + domain/cert/backup reminders; widget drag/resize layout;
