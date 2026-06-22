@@ -21,8 +21,10 @@ import {
 import { MetricCard, DetailRow } from "./metric-card";
 import { SeverityBadge } from "./severity-badge";
 
+/** Format a metric, rendering missing/invalid readings (null, undefined, NaN,
+ * Infinity) as "—". Note 0 is a valid reading (e.g. 0% usage) and is formatted. */
 const dash = (v: number | null | undefined, fmt: (n: number) => string) =>
-  v === null || v === undefined ? "—" : fmt(v);
+  v == null || !Number.isFinite(v) ? "—" : fmt(v);
 
 /** Top resource consumers, grouped by container/app (server-summarised). */
 function ConsumerList({ items, kind }: { items: ConsumerDTO[]; kind: "cpu" | "memory" }) {
@@ -60,7 +62,7 @@ export function CpuCard({ cpu }: { cpu: CpuTelemetryDTO }) {
         <>
           <DetailRow label="Cores / threads" value={cpu.cores ?? "—"} />
           <DetailRow label="Model" value={cpu.model ?? "—"} />
-          <DetailRow label="Clock" value={dash(cpu.clockMhz, formatClockMhz)} />
+          <DetailRow label="Clock" value={formatClockMhz(cpu.clockMhz)} />
           <DetailRow
             label="Temperature"
             value={

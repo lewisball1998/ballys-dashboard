@@ -1,6 +1,7 @@
 import os from "node:os";
 import { statfs } from "node:fs/promises";
-import { basename } from "node:path";
+import { basename, dirname, resolve } from "node:path";
+import { env } from "@/lib/env";
 import type {
   ConsumerDTO,
   CpuTelemetryDTO,
@@ -21,7 +22,7 @@ import { getSettings } from "@/server/services/settings";
 import { getLatestMetrics } from "@/server/services/metrics";
 import { capacitySeverity, isAlertable, temperatureSeverity, worstSeverity } from "./severity";
 import { redactSerial, sanitiseLabel } from "./redact";
-import { readMeminfo, readMounts, readNetDev } from "./proc";
+import { pickAppDataMount, readMeminfo, readMounts, readNetDev } from "./proc";
 import { readCpuTemperatureC, readDrives, readGpus } from "./sysfs";
 import { collectContainerStats, type ContainerStat } from "./container-stats";
 
@@ -37,6 +38,12 @@ const MAX_POOLS = 12;
 const TOP_CONSUMERS = 5;
 const round1 = (v: number) => Math.round(v * 10) / 10;
 
+/** A reading is only meaningful when it is a finite, positive number; 0 / NaN /
+ * Infinity / null all collapse to `null` (rendered as "—"), never a bogus value
+ * such as a 0 MHz CPU clock on a host that doesn't expose the real frequency. */
+const positiveFiniteOrNull = (v: number | null | undefined): number | null =>
+  typeof v === "number" && Number.isFinite(v) && v > 0 ? v : null;
+
 // Per-interface byte counters from the previous call, for rate (bytes/sec)
 // computation across requests — mirrors the core collector's delta approach.
 const prevNet = new Map<string, { rx: number; tx: number; at: number }>();
@@ -50,6 +57,13 @@ async function buildStoragePools(warnPct: number): Promise<StoragePoolDTO[]> {
   const mounts = await readMounts();
   if (!mounts) return []; // no /proc/mounts → clean "unavailable" storage state
   const critPct = Math.min(99, warnPct + 10);
+  // The filesystem holding the app's own data volume — labelled as app/container
+  // storage so it is never mistaken for a NAS pool.
+  const appDataDir = dirname(resolve(env.DATABASE_PATH));
+  const appDataMount = pickAppDataMount(
+    mounts.map((m) => m.mountpoint),
+    appDataDir,
+  );
   const seenDevice = new Set<string>();
   const pools: StoragePoolDTO[] = [];
   for (const m of mounts) {
@@ -72,6 +86,7 @@ async function buildStoragePools(warnPct: number): Promise<StoragePoolDTO[]> {
         totalBytes: total,
         usagePercent,
         isBoot,
+        isAppData: m.mountpoint === appDataMount,
       });
     } catch {
       // statfs failed for this mount; skip it
@@ -186,7 +201,9 @@ export async function collectInfrastructureTelemetry(): Promise<InfrastructureTe
     loadAverage: os.platform() === "win32" ? null : (os.loadavg() as [number, number, number]),
     cores: cpus.length || null,
     model: sanitiseLabel(cpus[0]?.model ?? null),
-    clockMhz: cpus[0]?.speed ?? null,
+    // Some hosts report 0 MHz when they don't expose the real frequency — that is
+    // "unknown", not a real clock, so normalise it (and any non-finite) to null.
+    clockMhz: positiveFiniteOrNull(cpus[0]?.speed),
     temperatureC: cpuTempC,
     temperatureSeverity: cpuTempSeverity,
     topConsumers: topBy(containerStats.stats, "cpuPercent"),
@@ -261,8 +278,8 @@ export async function collectInfrastructureTelemetry(): Promise<InfrastructureTe
       label: "Local system",
       status: deepHardwareVisible ? "available" : "partial",
       detail: deepHardwareVisible
-        ? "Container-visible system and hardware sensors."
-        : "Basic container-visible metrics only (no hardware sensors mounted).",
+        ? "Connected — container-visible system metrics and hardware sensors."
+        : "Connected — container-visible system metrics (no hardware sensors mounted).",
       lastRefresh: generatedAt,
     },
     {
@@ -270,15 +287,15 @@ export async function collectInfrastructureTelemetry(): Promise<InfrastructureTe
       label: "Docker",
       status: containerStats.available ? "available" : "not_configured",
       detail: containerStats.available
-        ? "Per-container resource usage."
-        : "Docker socket not connected — per-app usage hidden.",
+        ? "Connected — per-container resource usage."
+        : "Not connected — optional Docker socket gives per-app usage.",
       lastRefresh: containerStats.available ? generatedAt : null,
     },
     {
       id: "truenas",
       label: "TrueNAS",
       status: "not_configured",
-      detail: "Not configured. Pool/SMART telemetry is planned for a future release.",
+      detail: "Not configured — NAS pool & SMART telemetry is planned for a future release.",
       lastRefresh: null,
     },
   ];

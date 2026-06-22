@@ -36,8 +36,11 @@ export function formatWatts(watts: number): string {
   return `${Math.round(watts)} W`;
 }
 
-/** Clock speed: MHz, promoted to GHz at/above 1000 MHz. */
-export function formatClockMhz(mhz: number): string {
+/** Clock speed: MHz, promoted to GHz at/above 1000 MHz. Invalid readings (null,
+ * 0, NaN, Infinity — e.g. a host that doesn't expose the real frequency) render
+ * as "—" rather than a bogus "0 MHz". */
+export function formatClockMhz(mhz: number | null | undefined): string {
+  if (mhz == null || !Number.isFinite(mhz) || mhz <= 0) return "—";
   if (mhz >= 1000) return `${(mhz / 1000).toFixed(2)} GHz`;
   return `${Math.round(mhz)} MHz`;
 }

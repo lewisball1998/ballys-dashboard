@@ -135,6 +135,9 @@ export interface StoragePoolDTO {
   totalBytes: number | null;
   usagePercent: number | null;
   isBoot: boolean;
+  /** True when this filesystem holds the app/container data volume — surfaced as
+   * app storage, never as NAS/pool storage. */
+  isAppData: boolean;
 }
 
 export interface StorageTelemetryDTO {
